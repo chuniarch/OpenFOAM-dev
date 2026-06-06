@@ -348,7 +348,10 @@ iCavity/                       # 产品工作名
 ## 12. 下一步
 
 1. 评审本文档，确认 §2 类映射与 §4 案例数据结构。
-2. 起 **M0**：Swift Engine package 骨架 + cavity 数据 + 与真实 icoFoam 对拍测试。
+2. ~~起 **M0**~~ — **已搭建**：见 `ipad-cfd-teaching/FoamMini/`（SwiftPM 包）。
+   - 已含：`StructuredMesh`、`Field`、`Fvm`(ddt/div/laplacian)、`Fvc`(grad/flux/interpolate)、`FvMatrix`(A/H)、CG + Gauss-Seidel、`PisoControl`、`IcoFoam`、`CavityCase` 预设、CLI、验证测试。
+   - 顶层 `IcoFoam.step()` 与真实 `icoFoam.C` 逐行对应（见包内 README 的映射表）。
+   - ⚠️ **当前开发环境无 Swift 工具链且 swift.org 被网络策略拦截，代码尚未编译/运行验证**；需在 macOS/Linux 上 `swift build && swift test` 首次构建，按报错迭代。
 3. 并行整理 §5 映射表首批条目（icoFoam.C 的 PISO 各行）。
 
 > 许可合规（§11）：已决定原型期先内嵌真实源码开发、不阻塞；相关改造（外链 + 自写等价讲解、分发许可确认）列为**上架前**待办，见 §11.4。
