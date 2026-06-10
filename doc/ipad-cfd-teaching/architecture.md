@@ -1,6 +1,7 @@
 # iPad CFD 教学程序 · 架构设计文档
 
-> 版本：草案 v0.1　|　日期：2026-06-04
+> 版本：v0.2　|　日期：2026-06-10
+> 评审状态：**§2 类映射与 §4 案例数据结构已对照本仓库逐项核实并冻结**（评审记录见 §2.1、§4.5）。
 > 定位：**OpenFOAM 的「引桥课」**——在 iPad 上零环境成本走通一次「从输入到流场」的完整闭环，并直接对照真实 OpenFOAM 源码，让初学者带着心智模型去面对真正的工具。
 
 ---
@@ -53,20 +54,30 @@
 
 这张表是「源码入门」的骨架：用户在 UI 点到某个 Swift 概念，App 跳转展示右列真实 OpenFOAM 源码。
 
-| Swift 引擎类型 | 职责 | 对应真实 OpenFOAM | 真实源码位置（本仓库） |
+Swift 列已与 M0 实际代码（`ipad-cfd-teaching/FoamMini/`）的类型名对齐；右列路径已逐项核实存在于本仓库。
+
+| Swift 引擎类型（M0 实际名） | 职责 | 对应真实 OpenFOAM | 真实源码位置（本仓库，已核实） |
 |---|---|---|---|
-| `Case` | 持有 0/constant/system 三组数据 + 求解器标识 | 算例目录约定 | `tutorials/.../cavity/` |
-| `Time` | 时间推进、写出控制 | `Time` / `runTime` | `src/OpenFOAM/db/Time/` |
+| `CavityCase`（M3 演化为数据驱动 `CaseData`） | 持有 0/constant/system 三组数据 + 求解器标识 | 算例目录约定 | `tutorials/legacy/incompressible/icoFoam/cavity/cavity/` |
+| —（暂无独立 `Time` 类型，时间推进在 `IcoFoam.run`；M1 时间轴时再立） | 时间推进、写出控制 | `Time` / `runTime` | `src/OpenFOAM/db/Time/` |
 | `DimensionSet`（7 维幂） | 量纲 `[0 1 -1 …]` 校验 | `dimensionSet` | `src/OpenFOAM/dimensionSet/` |
-| `Mesh`（2D 结构化方腔） | cell/face/patch 拓扑、几何 | `polyMesh` / `fvMesh` | `src/finiteVolume/fvMesh/` |
-| `Field<Scalar>` / `Field<Vector>` | 体场（internal + boundary） | `volScalarField` / `volVectorField` | `src/finiteVolume/fields/volFields/` |
-| `SurfaceField<Scalar>` | 面场（如通量 `phi`） | `surfaceScalarField` | `src/finiteVolume/fields/surfaceFields/` |
-| `PatchField`（fixedValue / noSlip / zeroGradient / empty） | 边界条件 | `fvPatchField` 派生类 | `src/finiteVolume/fields/fvPatchFields/` |
-| `fvm`（命名空间/枚举）：`ddt/div/laplacian` | **隐式**离散 → 组装稀疏矩阵 `FvMatrix` | `Foam::fvm::` | `src/finiteVolume/finiteVolume/fvm/` |
-| `fvc`：`grad/div/flux/interpolate` | **显式**计算 → 直接返回场 | `Foam::fvc::` | `src/finiteVolume/finiteVolume/fvc/` |
-| `FvMatrix<T>` | 稀疏矩阵方程对象，支持 `==`、`A()`、`H()` | `fvMatrix` | `src/finiteVolume/fvMatrices/` |
-| `LinearSolver`（CG/Jacobi/GaussSeidel） | 解线性系统 | `PCG` / `smoothSolver` / `GAMG` | `src/OpenFOAM/matrices/lduMatrix/solvers/` |
-| `pisoControl` | PISO 循环控制 | `pisoControl` | `src/finiteVolume/cfdTools/general/solutionControl/` |
+| `StructuredMesh`（2D 结构化方腔） | cell/face/patch 拓扑、几何 | `polyMesh` / `fvMesh` | `src/finiteVolume/fvMesh/` |
+| `VolScalarField` / `VolVectorField` | 体场（internal + boundary） | `volScalarField` / `volVectorField` | `src/finiteVolume/fields/GeometricFields/volFields/` |
+| `SurfaceScalarField` | 面场（如通量 `phi`） | `surfaceScalarField` | `src/finiteVolume/fields/GeometricFields/surfaceFields/` |
+| `ScalarBC` / `VectorBC` 枚举（fixedValue / noSlip / zeroGradient / empty） | 边界条件 | `fvPatchField` 派生类 | `src/finiteVolume/fields/fvPatchFields/` |
+| `Fvm`：`ddt/div/laplacian` | **隐式**离散 → 组装稀疏矩阵 | `Foam::fvm::` | `src/finiteVolume/finiteVolume/fvm/` |
+| `Fvc`：`grad/flux/interpolate`（`div` 待补，见 §2.1） | **显式**计算 → 直接返回场 | `Foam::fvc::` | `src/finiteVolume/finiteVolume/fvc/` |
+| `FvScalarMatrix` / `FvVectorMatrix` | 稀疏矩阵方程对象，支持 `==`、`A()`、`H()`、`setReference()` | `fvMatrix`（typedef `fvScalarMatrix`/`fvVectorMatrix`） | `src/finiteVolume/fvMatrices/` |
+| `LinearSolver`（CG / Gauss-Seidel） | 解线性系统 | `PCG` / `smoothSolver` / `GAMG` | `src/OpenFOAM/matrices/lduMatrix/solvers/` |
+| `PisoControl`（含 `pRefCell`/`pRefValue`） | PISO 循环控制 | `pisoControl` | `src/finiteVolume/cfdTools/general/solutionControl/` |
+
+### 2.1 评审记录（2026-06-10，对照本仓库核实）
+
+- ✅ 右列 12 个源码路径全部核实存在；其中 2 处原稿有误已修正：`volFields`/`surfaceFields` 实际位于 `src/finiteVolume/fields/GeometricFields/` 之下，而非 `src/finiteVolume/fields/` 直下。
+- ✅ cavity 教程精确路径锚定为 `tutorials/legacy/incompressible/icoFoam/cavity/cavity/`（仓库另有 `tutorials/fluid/cavity`、`tutorials/incompressibleFluid/cavity`，属新版求解器模块，**非** icoFoam 教学锚点，勿混用）。
+- ✅ Swift 列改为 M0 实际类型名。M0 命名比原稿更贴近 OpenFOAM（`VolVectorField` vs 原稿 `Field<Vector>`），予以采纳。
+- 📌 设计决策：边界条件用**枚举**（`ScalarBC`/`VectorBC`）而非类继承。MVP 只有 4 种 BC，枚举更简单且 switch 穷举有编译期保障；若后续开放更多 BC 类型再演化为协议 + 派生类型（届时与 `fvPatchField` 继承树的对照教学更直观）。
+- 📌 已知缺口（已记录，不阻塞）：① `Fvc.div` 未实现——M0 在 `IcoFoam` 内部直接用通量散度组右端，语义等价但与展示的 `fvc::div(phiHbyA)` 不逐行对应，M0 收尾时补一个 `Fvc.div(SurfaceScalarField)` 包装即可对齐；② 线性求解器无 Jacobi（原稿笔误，实际 CG + Gauss-Seidel，已更正）；③ 真实 cavity 的 U 求解器是 smoothSolver+symGaussSeidel，M0 的 Gauss-Seidel 与之语义对应。
 
 > **教学重点（差异化王牌）：`fvm` 与 `fvc` 的区分。** `fvm::` 返回矩阵（隐式，进左端），`fvc::` 返回场（显式，进右端）。这是 OpenFOAM 最难懂也最核心的抽象，必须在 UI 上可视化（见 §6 面板⑦）。
 
@@ -76,7 +87,7 @@
 
 设计目标——Swift 的求解器顶层必须和真实 `icoFoam.C` 几乎逐行对应。
 
-真实 OpenFOAM（`applications/legacy/incompressible/icoFoam/icoFoam.C`，节选）：
+真实 OpenFOAM（`applications/legacy/incompressible/icoFoam/icoFoam.C`，节选；行号已核实：UEqn 组装 75–80，动量预测 82–85，PISO 循环 88–127）：
 
 ```cpp
 fvVectorMatrix UEqn
@@ -121,6 +132,8 @@ while piso.correct() {
 }
 ```
 
+> 一致性注记（评审补充）：真实 icoFoam.C 还含三处上面 Swift 示意省略的调用——`adjustPhi(phiHbyA, U, p)`（L99，全封闭域通量全局守恒修正）、`constrainPressure(...)`（L102）、`pEqn.setReference(pRefCell, pRefValue)`（L114，纯 Neumann 压力方程定参考点，**必需**）。M0 已实现 `setReference`；`adjustPhi` 在封闭方腔属必要语义，M0 验证阶段须确认等价处理。源码面板展示真实代码时这三行**不省略**，映射表（§5）须为其建条目。
+
 Swift 实现要点：
 - 运算符重载 `+ - * ==` 让方程可读；`FvMatrix` 实现 `==`（移项）、`A()`（对角）、`H()`（off-diagonal 贡献）。
 - `fvm.*` 返回 `FvMatrix`，`fvc.*` 返回 `Field`，**类型系统强制区分隐式/显式**（编译期就教对了概念）。
@@ -159,8 +172,8 @@ nu   [0 2 -1 0 0 0 0]   0.01;
 
 - **controlDict**：`endTime 0.5`、`deltaT 0.005`、`writeInterval 20`、`writeControl timeStep`。
 - **fvSchemes**：`ddt: Euler`；`grad: Gauss linear`；`div(phi,U): Gauss linear`；`laplacian: Gauss linear orthogonal`；`interpolation: linear`；`snGrad: orthogonal`。
-- **fvSolution**：`p: PCG + DIC, tol 1e-6, relTol 0.05`；`pFinal: relTol 0`；`U: smoothSolver + symGaussSeidel, tol 1e-5`；`PISO: nCorrectors 2, nNonOrthogonalCorrectors 0, pRefCell 0, pRefValue 0`。
-- **blockMeshDict**：单 hex 块，`scale 0.1`，`(20 20 1)` 均匀网格，patch：movingWall（顶）、fixedWalls（左右下）、frontAndBack（empty，2D）。
+- **fvSolution**：`p: PCG + DIC, tol 1e-6, relTol 0.05`；`pFinal: relTol 0`；`U: smoothSolver + symGaussSeidel, tol 1e-5, relTol 0`；`PISO: nCorrectors 2, nNonOrthogonalCorrectors 0, pRefCell 0, pRefValue 0`。
+- **blockMeshDict**：单 hex 块，`scale 0.1`，`(20 20 1)` 均匀网格，patch：movingWall（顶，type wall）、fixedWalls（左右下，type wall）、frontAndBack（type empty，2D）。
 
 ### 4.4 Swift 侧建议的案例数据结构（示意）
 
@@ -177,6 +190,23 @@ struct CaseData: Codable {
 ```
 
 > 简化纪律（MVP）：网格只支持 2D 均匀笛卡尔方腔（跳过 `blockMesh` 复杂语法，但保留 patch/边界概念）；`fvSchemes` 选项先固定为 cavity 默认值并以**只读说明**呈现，第二阶段再开放可选。
+
+### 4.5 评审记录（2026-06-10，对照本仓库核实）
+
+对照 `tutorials/legacy/incompressible/icoFoam/cavity/cavity/` 实际文件逐项核验：
+
+| 项 | 结果 |
+|---|---|
+| `0/U`（量纲、internalField、3 个 patch 的 type/value） | ✅ 与 §4.1 完全一致 |
+| `0/p`（量纲、internalField、3 个 patch） | ✅ 一致 |
+| `constant/physicalProperties`（`nu [0 2 -1 0 0 0 0] 0.01`） | ✅ 一致 |
+| `system/controlDict`（endTime/deltaT/writeControl/writeInterval） | ✅ 一致 |
+| `system/fvSchemes`（Euler、Gauss linear、orthogonal 等） | ✅ 一致（实际文件另有显式 `grad(p) Gauss linear`，与 default 同值） |
+| `system/fvSolution` | ✅ 一致；补记 U 的 `relTol 0`（原稿遗漏） |
+| `system/blockMeshDict` | ✅ 一致；补记 patch 的 `type wall`/`type empty` |
+| `CaseData` 数据结构 | ✅ 字段覆盖上述全部输入，**冻结**；`pRefCell/pRefValue` 归属 `FvSolution`（与真实字典的 PISO 子字典一致） |
+
+结论：**§4 案例数据格式评审通过并冻结**。M3 字典编辑器与 M0 案例装载均以本节为契约。
 
 ---
 
@@ -347,7 +377,7 @@ iCavity/                       # 产品工作名
 
 ## 12. 下一步
 
-1. 评审本文档，确认 §2 类映射与 §4 案例数据结构。
+1. ~~评审本文档，确认 §2 类映射与 §4 案例数据结构~~ — **已完成并冻结**（2026-06-10，见 §2.1、§4.5）：修正 2 处源码路径、锚定教程精确路径、Swift 列对齐 M0 实际类型名、补记 `Fvc.div` 缺口与 `adjustPhi`/`setReference` 一致性注记（§3）。
 2. ~~起 **M0**~~ — **已搭建**：见 `ipad-cfd-teaching/FoamMini/`（SwiftPM 包）。
    - 已含：`StructuredMesh`、`Field`、`Fvm`(ddt/div/laplacian)、`Fvc`(grad/flux/interpolate)、`FvMatrix`(A/H)、CG + Gauss-Seidel、`PisoControl`、`IcoFoam`、`CavityCase` 预设、CLI、验证测试。
    - 顶层 `IcoFoam.step()` 与真实 `icoFoam.C` 逐行对应（见包内 README 的映射表）。
