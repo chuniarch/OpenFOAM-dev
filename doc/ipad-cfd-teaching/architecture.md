@@ -48,6 +48,13 @@
 
 **关键纪律：引擎层零 UI 依赖。** 引擎是一个可独立单元测试的 Swift package，UI 只读它的状态、调它的 `step()`。这样「好调试好优化」才真正成立。
 
+### 1.1 评审记录（2026-06-10，对照 M0 代码核实）
+
+- ✅ **零 UI 依赖已验证**：`FoamMiniEngine` 全部源码的 import 仅 `Foundation`（1 处），无 SwiftUI/UIKit/Metal；CLI 与测试仅依赖引擎本身。纪律成立。
+- ✅ **M0 目录结构与引擎层模块划分一致**：Core（Mesh/Fields/Vector2/DimensionSet）、Discretisation（Fvm/Fvc）、Matrix（FvMatrix）、Solvers（IcoFoam/LinearSolver/PisoControl）、Case（CavityCase），独立 SwiftPM 包 + 测试。
+- ✅ 四层落地进度符合里程碑：引擎层已成形；资源层部分成形（案例数据有，源码片段 + 映射表待 M2）；展示层、联动层未开工（M1/M2）。
+- 📌 **设计缺口（列入 M1 架构细化议题）**：§3 要求「每个算子执行时向联动层广播自己对应真实源码哪一段」，但引擎当前对外只有粗粒度接口——`run(onStep:)` 回调 + `StepReport`（每时间步一次）。算子级广播（如 `fvm.ddt` 执行 → 源码面板高亮 icoFoam.C 第 77 行）需要新设计一个事件流接口（候选：引擎事件枚举 + AsyncStream），它是联动层「单一事实源」的数据来源，属 M1/M2 的前置条件。
+
 ---
 
 ## 2. Swift 引擎类设计 ↔ 真实 OpenFOAM 类映射
