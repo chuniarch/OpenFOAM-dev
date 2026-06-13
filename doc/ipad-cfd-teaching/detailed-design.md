@@ -78,4 +78,200 @@
 
 ---
 
-> 状态：§0/§1 接上下文与施工清单已立。下一步进入 **④-1**（求解游标详设）——先讲「在干嘛/为什么」，再就第一个关键选型（暂停-续算机制）请需求方拍板，然后落图纸。
+## ④-1　求解游标 `SolveCursor` / `SolveEvent` 详细设计
+
+### ④-1.1 在干嘛 / 为什么（一句话回顾）
+
+现状：`IcoFoam.step()` 是**一条直线**，一口气把一个时间步算完、给一张 `StepReport`，中途看不到、停不下。
+教学 App 要"点一处、多处亮"，需要引擎**算一小步就停下来报幕**（像逐帧暂停的视频）。
+④-1 = 把 ③ §15 的"求解游标"草图落成**可编译级设计**，并把直线 `step()` 做**行为保持的重构**切成相位游标，论证 **T5 逐位一致**。
+
+### ④-1.2 援引 ③ 已冻结契约（§15，原文，本节据此精化）
+
+> **§15.1 ADR-011 决策（节录）**：引入**同步、确定性、可恢复**的「求解游标」`SolveCursor`——`advance() -> SolveEvent` 执行下一相位、就地更新场、返回事件。事件 `SolveEvent`（**纯 Swift 值类型，零 UI import**）携带 `phase + nodeID + 迭代坐标(step/corrector) + 载荷(residual/contErr/report)`。联动层在游标之上提供 `AsyncStream<SolveEvent>`（播放）与 `step()/stepSubPhase()`（两档单步）。现有 `step(time:)`/`run(endTime:onStep:)` 降为游标之上的便利包装（**M0 测试不破**）。
+
+> **§15.2 相位序（15 相，行号已核实）**：0 `timeStepBegin`(L67-69,`icoFoam`)｜1 `op(.ddt,.lhs)`(L77,`fvm.ddt`)｜2 `op(.div,.lhs)`(L78,`fvm.div`)｜3 `op(.laplacian,.lhs)`(L79,`fvm.laplacian`)｜4 `assembleMomentum`(L75-80,`icoFoam.UEqn`)｜5 `op(.grad,.rhs)`(L84,`fvc.grad(p)`)｜6 `solveMomentum`(L82-85,`icoFoam.UEqn`)｜7 `pisoCorrectorBegin(c)`(L88-91,`icoFoam.piso`)｜8 `op(.flux,.rhs)`(L92-97,`fvc.flux`)｜9 `assemblePressure(c)`(L109-112,`icoFoam.pEqn`)｜10 `solvePressure(c)`(L114-116,`icoFoam.pEqn`)｜11 `correctFlux(c)`(L118-121,`field.phi`)｜12 `correctVelocity(c)`(L126-127,`fvc.grad(p)`)｜13 `pisoCorrectorEnd(c)`(L124,`icoFoam.piso`)｜14 `timeStepEnd`(L130,`icoFoam`)。
+> **T5 不变量（§15.2 原文）**：游标按相位推进 n 步得到的场，必须与连续 `run` 跑 n 步**逐位一致**——因为游标只是把同一套 `step()` 算术**重新切相位、不改运算与顺序**。
+
+§15.3 给的是类型**草案**；下面 ④ 把它精化到"照着能写"。
+
+### ④-1.3 设计决策（A + 三条派生子决策）
+
+**主选型（需求方已拍板）**：**A 手写相位状态机**——游标存一个"走到第几相位"的标记 + 把算到一半的中间量存在游标字段上；`advance()` 用一个 `switch` 执行当前相位、更新状态、返回事件。（落选 B async/await 协程、C 线程+信号量：均把并发/不确定性塞进引擎，违反 ADR-001 同步可单测、威胁 T5 逐位一致——见 §15.1 落选项。）
+
+由 A 直接派生、④ 详设要钉死的三条：
+
+- **④-1-子决策①　游标归属与场共享**：`IcoFoam` 仍**拥有** `U/p/phi`，并持有**一个长生命周期**的 `cursor`。`SolveCursor` 持 `unowned let solver: IcoFoam` 回引用：
+  - `U`、`p` 是 **class（引用类型）** → 游标经 `solver.U.internalField[...] = …` **就地改**，天然与 solver 共享同一份（单一事实源，ADR-008）。
+  - `phi` 是 **struct（值类型）** → 游标改完经 `solver.phi = …` **属性写回** solver（值类型不会自动共享，必须显式回写——这正是 ②§2.3 预告的"值/引用语义"落点）。
+  - 算到一半的中间量（`UEqn`/`rAU`/`HbyA`/`phiHbyA`/`pEqn`…）是**一个时间步内的临时品** → 存为**游标自己的字段**（"把原本藏在函数里的局部变量挪到对象上"）。
+- **④-1-子决策②　`step()`/`run()` 降为薄包装**：全引擎**只保留一套算术**（在游标的各相位里）。`step()` = 驱动游标到下一个 `timeStepEnd`；`run()` = 循环调用 `step()`。→ 单步与连跑走**同一份代码**，T5 自然成立（详见 §④-1.8）。
+- **④-1-子决策③　`time` 归属**：游标权威，`time = Double(step)·dt`。这与旧 `run()` 里 `t += dt`（第 s 步 = s·dt）**等值**，故 `run()` 报告逐位不变。`step(time:)` 的入参保留作**源码兼容**，实际以游标为准（无调用方传非 s·dt，安全）。
+
+### ④-1.4 `SolveEvent`（精化自 §15.3 草案，纯值类型 / 零 UI / 可序列化回放）
+
+```swift
+public enum OperatorKind { case ddt, div, laplacian, grad, flux, interpolate }
+public enum PhaseRole    { case lhs, rhs }     // fvm 进左端(隐式) / fvc 进右端(显式)
+
+public enum SolveEvent: Equatable {            // Equatable 支持事件流单测/回放对拍
+    case timeStepBegin(step: Int, time: Double)
+    case op(OperatorKind, role: PhaseRole, nodeID: String)
+    case assembleMomentum(nodeID: String)                       // "icoFoam.UEqn"
+    case solveMomentum(residual: Double, nodeID: String)        // 旧 step() 丢弃的残差，这里捡回
+    case pisoCorrectorBegin(index: Int, nodeID: String)         // "icoFoam.piso"
+    case assemblePressure(index: Int, nodeID: String)           // "icoFoam.pEqn"
+    case solvePressure(index: Int, residual: Double, nodeID: String)
+    case correctFlux(index: Int, nodeID: String)                // "field.phi"
+    case correctVelocity(index: Int, nodeID: String)
+    case pisoCorrectorEnd(index: Int, continuityError: Double, nodeID: String)
+    case timeStepEnd(report: StepReport)                        // 复用现有 StepReport
+}
+```
+
+> 注：`StepReport` 须加 `: Equatable`（其成员全是 `Double`，零成本）以让 `SolveEvent: Equatable` 成立——供 §④-1.9 的事件流对拍。
+
+### ④-1.5 `SolveCursor`：相位枚举（程序计数器）+ 字段 + 签名
+
+```swift
+public final class SolveCursor {                 // 同步、确定性、可恢复
+    // —— 程序计数器：15 相的纯标签（不带 c，c 单独存）——
+    private enum Phase {
+        case timeStepBegin
+        case opDdt, opDiv, opLaplacian, assembleMomentum
+        case opGradP, solveMomentum
+        case pisoBegin, opFlux, assemblePressure, solvePressure, correctFlux, correctVelocity, pisoEnd
+        case timeStepEnd
+    }
+    private var phase: Phase = .timeStepBegin      // 下一次 advance() 要执行的相位
+    private var step = 0                           // 已完成/进行中的时间步序号
+    private var corrector = 0                      // 当前 PISO 子步 index (0..<nCorr)
+
+    // —— 上下文（只读，回引用 solver）——
+    private unowned let solver: IcoFoam
+    private var dt: Double { solver.dt }
+    private var nCorr: Int { max(solver.piso.nCorrectors, 1) }
+
+    // —— 跨相位"溢出"的中间量（原 step() 的局部变量挪到这里）——
+    private var ddtM, divM, lapM: FvVectorMatrix?  // 相1,2,3 → 相4
+    private var UEqn: FvVectorMatrix?              // 相4 → 相7(每个 corrector 复用)
+    private var mom: FvVectorMatrix?               // 相5 → 相6
+    private var rAU: [Double]?                     // 相7 → 相12
+    private var HbyA: [Vector2]?                   // 相7 → 相12
+    private var rAUf: [Double]?                    // 相8 → 相9,11
+    private var phiHbyA: SurfaceScalarField?       // 相8 → 相9,11
+    private var pEqn: FvScalarMatrix?              // 相9 → 相10
+    private var pInitRes = 0.0                     // 相10 → 相14(取末次 corrector)
+
+    // —— D3 reset 用的初始快照（构造时拷贝一份）——
+    private let U0: [Vector2]
+    private let p0: [Double]
+
+    public init(solver: IcoFoam) {
+        self.solver = solver
+        self.U0 = solver.U.internalField           // 值语义数组：拷贝
+        self.p0 = solver.p.internalField
+    }
+
+    // —— 三个公开原语（§15.1 契约）——
+    @discardableResult public func advance() -> SolveEvent   // 执行下一相位、就地更新场、返回事件
+    public var atTimeStepBoundary: Bool {                    // 处于时间步边界（可干净停车 / 计步）
+        if case .timeStepBegin = phase { return true } else { return false }
+    }
+    public func reset() {                                    // D3：编辑后重置重算
+        solver.U.internalField = U0
+        solver.p.internalField = p0
+        solver.phi = solver.recreatePhi()                    // = fvc.flux(U0) ，与 init 一致
+        phase = .timeStepBegin; step = 0; corrector = 0; pInitRes = 0
+        ddtM = nil; divM = nil; lapM = nil; UEqn = nil; mom = nil
+        rAU = nil; HbyA = nil; rAUf = nil; phiHbyA = nil; pEqn = nil
+    }
+}
+```
+
+### ④-1.6 `advance()` 的 `switch` 结构 —— 相位 ↔ 算术 ↔ 事件 对照表（核心图纸）
+
+每一格的"算术"**逐字取自现 `IcoFoam.step()`**（只换了取场的写法 `solver.U` 等）；这就是 T5 的根据——同样的运算、同样的顺序、同样的操作数，只换了"在哪儿暂停"。
+
+| 相位 | 算术（逐字取自现 `step()`）| 写入溢出字段 | 下一相位 | 返回 `SolveEvent` |
+|---|---|---|---|---|
+| `timeStepBegin` | `step += 1; corrector = 0`（`time = step·dt`）| — | `opDdt` | `.timeStepBegin(step, step·dt)` |
+| `opDdt` | `ddtM = fvm.ddt(U)` | `ddtM` | `opDiv` | `.op(.ddt,.lhs,"fvm.ddt")` |
+| `opDiv` | `divM = fvm.div(phi, U)` | `divM` | `opLaplacian` | `.op(.div,.lhs,"fvm.div")` |
+| `opLaplacian` | `lapM = fvm.laplacian(nu, U)` | `lapM` | `assembleMomentum` | `.op(.laplacian,.lhs,"fvm.laplacian")` |
+| `assembleMomentum` | `UEqn = (ddtM + divM) - lapM` | `UEqn` | `momPred ? opGradP : pisoBegin` | `.assembleMomentum("icoFoam.UEqn")` |
+| `opGradP` | `var m = UEqn; gP = fvc.grad(p); for c { m.source[c] -= gP[c]*V }; mom = m` | `mom` | `solveMomentum` | `.op(.grad,.rhs,"fvc.grad(p)")` |
+| `solveMomentum` | `let perf = gaussSeidel(mom, &U.internalField, 4)` | （`U` 改）| `pisoBegin` | `.solveMomentum(perf.initialResidual,"icoFoam.UEqn")` |
+| `pisoBegin` | `A = UEqn.A(); H = UEqn.H(U); for c { rAU[c]=1/A[c]; HbyA[c]=rAU[c]*H[c] }` | `rAU,HbyA` | `opFlux` | `.pisoCorrectorBegin(corrector,"icoFoam.piso")` |
+| `opFlux` | `phiHbyA = fvc.flux(HbyA, bc); rAUf = fvc.interpolate(rAU)` | `phiHbyA,rAUf` | `assemblePressure` | `.op(.flux,.rhs,"fvc.flux")` |
+| `assemblePressure` | `pEqn = fvm.laplacianSPD(rAUf,p); 各内面 pEqn.source ∓= phiHbyA; pEqn.setReference(pRefCell,pRefValue)` | `pEqn` | `solvePressure` | `.assemblePressure(corrector,"icoFoam.pEqn")` |
+| `solvePressure` | `let perf = conjugateGradient(pEqn, &p.internalField, 1e-6, 0.05); pInitRes = perf.initialResidual` | （`p` 改）`pInitRes` | `correctFlux` | `.solvePressure(corrector, perf.initialResidual,"icoFoam.pEqn")` |
+| `correctFlux` | `各内面 phiHbyA -= w·dp; solver.phi = phiHbyA`（**值类型显式写回**）| （`solver.phi` 改）| `correctVelocity` | `.correctFlux(corrector,"field.phi")` |
+| `correctVelocity` | `gP = fvc.grad(p); for c { U.internalField[c] = HbyA[c] - rAU[c]*gP[c] }` | （`U` 改）| `pisoEnd` | `.correctVelocity(corrector,"fvc.grad(p)")` |
+| `pisoEnd` | （读 `solver.continuityError()` 仅供事件展示，**只读不改场**）| — | `corrector += 1; corrector < nCorr ? pisoBegin : timeStepEnd` | `.pisoCorrectorEnd(corrector, contErr,"icoFoam.piso")` |
+| `timeStepEnd` | `report = StepReport(step·dt, courantMax(), pInitRes, continuityError(), uMax())` | — | `timeStepBegin`（下一步）| `.timeStepEnd(report)` |
+
+**两处"多给数据、不改算术"**（事件流比旧 `StepReport` 更细，但不动数值）：
+- `solveMomentum` 把 `gaussSeidel` 的返回（旧 `step()` 用 `@discardableResult` **丢弃**）捡回当残差载荷——读返回值不改求解过程。
+- `pisoEnd` 为事件**额外**算一次 `continuityError()`（只读求和），让用户看到连续性误差逐子步下降；旧 `step()` 只在末尾算一次。**只读、不写场 → 不影响 T5。**
+
+### ④-1.7 `step()` / `run()` 重构为游标包装（M0 测试不破）
+
+```swift
+extension IcoFoam {
+    public private(set) lazy var cursor = SolveCursor(solver: self)   // 一个长生命周期游标
+
+    @discardableResult
+    public func step(time: Double = 0) -> StepReport {                // 驱动游标走完一个时间步
+        while true {
+            if case .timeStepEnd(let r) = cursor.advance() { return r }
+        }
+    }
+    @discardableResult
+    public func run(endTime: Double, onStep: ((Int, StepReport) -> Void)? = nil) -> [StepReport] {
+        var reports: [StepReport] = []
+        let nSteps = max(Int((endTime / dt).rounded()), 1)
+        for s in 1...nSteps { let r = step(); reports.append(r); onStep?(s, r) }
+        return reports
+    }
+}
+```
+
+> 联动层（④-3 详设）在 `advance()` 之上做**两档单步**：**相位级单步** = 调 1 次 `advance()`；**时间步级单步** = 循环 `advance()` 直到事件为 `.timeStepEnd`。播放 = 在后台把 `advance()` 包成 `AsyncStream<SolveEvent>`（并发只在联动层，引擎仍同步）。
+
+### ④-1.8 T5 逐位一致论证（"切蛋糕不改配方"）
+
+**命题**：对任意 n，"`reset()` 后纯靠 `advance()` 把游标推过 n 个 `timeStepEnd`"得到的 `U/p/phi`，与"`reset()` 后 `run(n·dt)`"得到的 `U/p/phi`，**逐位（bitwise）相同**。
+
+**论证**（三段）：
+1. **唯一算术源**：重构后 `step()`/`run()` 都只是循环调用 `cursor.advance()`（§④-1.7），**不含任何自己的数值运算**。故"连跑"和"单步"执行的是**同一个 `advance()` 函数体**，只是调用节奏不同。
+2. **相位切分是行为保持的**：§④-1.6 每相位的算术**逐字搬自原 `step()`**，**运算、顺序、操作数全未变**；跨相位的局部量改存游标字段，是**存储位置**变化而非**数值**变化。唯一非"逐字照搬"的是把一行 `UEqn = ddt + div - laplacian` 拆成 4 相——单独证它逐位一致：
+   - 三个算子函数 `fvm.ddt/div/laplacian` 是**纯函数**（只读 `U/phi/nu/mesh/dt`、不改场），相 1–3 之间 `U/phi` 未被任何相位写过（`U` 最早在相 6 才写）→ 三相读到的操作数与原一行**完全相同**；
+   - 原式 `a + b - c` 在 Swift 里左结合 = `(a + b) - c`；相 4 用 `(ddtM + divM) - lapM`——**同样的 `+` 再 `-`、同样次序** → 系数逐位相同。
+3. **暂停是状态的恒等变换**：游标**同步、无并发、不读时钟/随机数**；两次 `advance()` 之间不论停多久，游标状态原样不动。故"单步时的暂停"对最终场是 no-op。
+   
+   1 + 2 + 3 ⟹ 单步序列与连跑序列是**同一串浮点运算**，结果逐位一致。∎
+
+### ④-1.9 可测试性设计：T5 / 回归 判据（无工具链，给"能写出的单测"）
+
+| 判据 | 设计（⑤ 落成 XCTest）|
+|---|---|
+| **G1 黄金对拍（T5 主判据）** | 造两个同 `CaseData` 的 solver `A`、`B`；`A.run(0.5)`；`B` 仅靠 `B.cursor.advance()` 推进，直到累计 **N=100** 个 `.timeStepEnd`。断言 `A.U.internalField == B.U.internalField`（逐元素 `==`，**非** `accuracy`）、`p` 同、`phi.internalField` 同。|
+| **G2 暂停不变性** | 同一 solver，"每相位 `advance()` 后插入无操作"对比"连续 `advance()`"——末场逐位相同（暂停 = 恒等）。|
+| **G3 两档等价** | "相位级单步 14×k 次" == "时间步级单步 k 次" == `run(k·dt)`，三者逐位相同。|
+| **G4 旧测试回归** | 现有 `CavityTests`（`run(0.5)` 后 `uMax<1.05`、`continuityError<1e-3`、回流为负）**原样通过**——因 `run()` 输出逐位不变。|
+| **G5 事件序正确** | 一个时间步的事件序列 == §15.2 的 15 相（PISO 段重复 `nCorrectors` 次）；每个 `nodeID` 命中 §16 graph 的节点（接 ④-4）。|
+
+### ④-1.10 诚实边界 / 已知缺口（登记，不阻塞 ④-1）
+
+- **"展示未执行"行**：真实 icoFoam.C 的 `constrainHbyA`(L96)、`adjustPhi`(L99)、`constrainPressure`(L102) M0 未实现，**无对应相位**。源码面板照常显示这些行（ADR-002/§3），由联动层标"展示未执行"。非 T5 问题（这些行不在 Swift 算术里）。补齐留 M0 收尾/⑤。
+- **`recreatePhi()`**：`reset()` 依赖一个"由初始 `U` 重算 `phi`"的工厂方法（= `init` 里 `fvc.flux(U0…)` 的同一段）；现 `IcoFoam.init` 内联了这段，⑤ 实现时抽成 `recreatePhi()` 供 `init` 与 `reset()` 共用（消除重复、保证一致）。
+- **`lazy var cursor` 与值类型**：`phi` 经 `solver.phi = …` 回写依赖 `solver` 是 class（是）。若未来把 `IcoFoam` 改 struct，此设计需复审（目前 `IcoFoam` 为 `final class`，成立）。
+
+### ④-1 小结
+
+把 §15 草图精化为：1 个 `SolveEvent` 值枚举 + 1 个 `SolveCursor`（15 相位状态机 + 溢出字段 + `advance/atTimeStepBoundary/reset`）+ `step()/run()` 薄包装；给出**相位↔算术↔事件**逐格对照（算术逐字搬自现 `step()`）与 **T5 三段论证** + **5 条测试判据**。**引擎仍同步零 UI**（只产 `SolveEvent` 值）。遗留 3 条缺口已登记、不阻塞。
+
+---
+
+> 状态：**④-1 详设完成并落盘**（待 ④-7 统一评审冻结）。下一步 **④-2**：给 `FvMatrix` 加"按 cell 取该行系数(aP/各 aN)"只读访问器（接 UC5 探针 / T6）。
