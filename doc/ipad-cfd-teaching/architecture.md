@@ -1,8 +1,8 @@
 # iPad CFD 教学程序 · 架构设计文档
 
 > 版本：v0.3（草拟中 · ③架构设计）　|　日期：2026-06-13（v0.2 定稿 2026-06-10）
-> 修订史：v0.3 — 进入 ③架构设计：新增 §13 架构决策记录（ADR 台账，正规化 §0 的 7 条已定决策）；待并入 D1–D4 裁决、引擎「算子级事件」接口（补 §1.1 缺口）、资源层契约升级（并入思维导图 graph + 预留 FR7 ContextPack 挂点），评审后冻结。
-> 评审状态：**§2 类映射与 §4 案例数据结构已对照本仓库逐项核实并冻结**（评审记录见 §2.1、§4.5）。§13 ADR 台账编写中。
+> 修订史：v0.3 — 进入 ③架构设计。已完成：§13 ADR 台账（正规化 §0 的 7 条决策，ADR-001..007）；§14 D1–D4 裁决；§15 引擎↔联动层事件接口（补 §1.1 缺口，ADR-011）。待并入：资源层契约升级（思维导图 graph + FR7 ContextPack 挂点）、ADR-008..010（分层/GPL/图形化编辑），评审后冻结。
+> 评审状态：**§2 类映射与 §4 案例数据结构已对照本仓库逐项核实并冻结**（评审记录见 §2.1、§4.5）。§13/§15 ADR 与事件接口已成形；资源层契约（item 4）与全文评审冻结待办。
 > 定位：**OpenFOAM 的「引桥课」**——在 iPad 上零环境成本走通一次「从输入到流场」的完整闭环，并直接对照真实 OpenFOAM 源码，让初学者带着心智模型去面对真正的工具。
 
 ---
@@ -474,3 +474,87 @@ iCavity/                       # 产品工作名
 > 台账小结：ADR-001..003 是「源码入门」差异化的三连扣（Swift 跑 + 真 C++ 看 + 映射表锁一致）；ADR-004/005 锚定范围与可演进性；ADR-006/007 是呈现层选型。**落选选项几乎全由 NFR 与约束（C1–C4、NFR1–NFR6）否决，FR 极少直接否决某选项**——再次印证「需求→架构 ASR 筛法」：NFR/约束才是架构显著性的主力。
 
 > 许可合规（§11）：已决定原型期先内嵌真实源码开发、不阻塞；相关改造（外链 + 自写等价讲解、分发许可确认）列为**上架前**待办，见 §11.4。
+
+---
+
+## 14. D1–D4 裁决（②→③ 开放决策收口）
+
+`analysis-model.md §6` 留给 ③ 的 4 个开放决策，2026-06-13 由需求方拍板：
+
+| # | 决策点 | 裁决 | 理由 / 后果 | 影响下游 |
+|---|---|---|---|---|
+| **D1** | UC6 detail 呈现 | **固定侧栏**（地图常驻 + 源码并排）；**暂定，待 UI 评审验证，效果不佳可回退浮层** | overview+detail 同屏是思维导图教法核心；契合 NFR6 iPad 横屏多栏。代价：源码栏宽度受限 | UX 架构（§6 面板③）；**可回退，不进不可变 ADR** |
+| **D2** | 单步粒度 | **时间步 + PISO 子步两档** | PISO 内部（动量预测→压力修正→通量校正）是 FR4/FR5 教学王牌，须可见可单步 | **直接决定 §15 引擎事件接口粒度**（下沉到算子/子步级）|
+| **D3** | 编辑后重算 | **重置重算（MVP）** | 语义干净、与 UC2-E3 既定 MVP 策略一致、实现简单；「从当前时刻续算」属进阶项延后 | 联动层重算流；§15 游标 `reset()` |
+| **D4** | 图布局算法 | **手工定坐标（MVP）** | icoFoam 节点仅约十几个，手工排版可按教学顺序摆位、最可控、零额外依赖 | 资源层 graph：node 带可选 `x/y`（item 4 契约）|
+
+> D1 注记：需求方明确「先看效果、不理想再改」——故 D1 登记为**可回退的暂定项**，不进「不可变 ADR」，留待 ④ 设计稿 / NFR6 评审复核。D2/D3/D4 为稳定裁决。
+
+---
+
+## 15. 引擎↔联动层 事件接口（补 §1.1 缺口）[ADR-011]
+
+§1.1 记录的设计缺口：引擎对外仅 `step()→StepReport` / `run(onStep:)`（**每时间步一次，粗粒度**），但「点算子→高亮真实源码行」（FR4）、「执行游标脉冲」（UC6-E2）、「子步单步」（D2/UC4）都要求**算子/子步级**广播。本节把该接口的形状定下来。
+
+### 15.1 ADR-011 · 事件接口 = 同步可恢复「求解游标」+ 事件枚举（AsyncStream 作播放适配）
+- **背景**：上述缺口；**D2 裁决（时间步+PISO 子步两档）**要求引擎能在子步边界**暂停/恢复**；NFR4（流畅、可连续播放）；ADR-001（引擎零 UI 依赖、可单测）；验收 T5（单步一致性：暂停-单步 n 次的场 = 连续跑 n 步**逐位一致**）。
+- **决策**：引入**同步、确定性、可恢复**的「求解游标」`SolveCursor` 作为新原语——`advance() -> SolveEvent` 执行下一相位、就地更新场、返回事件。事件类型 `SolveEvent`（**纯 Swift 值类型，零 UI import**）携带 `phase + nodeID + 迭代坐标(step/corrector) + 载荷(residual/contErr/report)`。**联动层**在游标之上提供 `AsyncStream<SolveEvent>`（播放模式驱动 UI 刷新）与 `step()/stepSubPhase()`（两档单步）。现有 `step(time:)`/`run(endTime:onStep:)` 降为游标之上的便利包装（**M0 测试不破**）。
+- **落选选项（及否决它的需求）**：
+  - **纯同步回调** `step(emit:(SolveEvent)->Void)` —— 能广播但无法在子步边界暂停/恢复（直线循环跑完才返回），被 **D2 子步单步 + UC4** 否决。
+  - **纯 AsyncStream（引擎内开 Task 异步求解）** —— 适合播放，但把并发塞进引擎，损 **ADR-001 可单测** 与 **T5 逐位一致**（异步调度引入非确定性）；故 AsyncStream 只在联动层用，不下沉进引擎。
+  - **维持现状（仅 StepReport / 时间步粒度）** —— 被 **FR4 / FR5 / UC6-E2** 否决（无算子级游标则无源码联动、无执行脉冲）。
+- **后果与缓解**：正面 = 算子级联动落地、单步确定可复现（T5/T6 可验收）、引擎仍同步零 UI（ADR-001 不破）、向后兼容 M0。负面 = 须把直线 `step()` 重构为相位游标，承担**「重构须行为保持」**义务（游标的数值运算序列须与原 `step()` 逐位一致）；M0 现有数值简化（省 `adjustPhi`/`constrainPressure`/`fvc::ddtCorr`）使真实 icoFoam.C 的 L96/L99/L102 暂无对应相位——这些行**照常显示**（ADR-002/§3）、标「展示未执行」状态，待 M0 补齐再接相位。缓解 = 游标重构守「相位切分、算术不动」纪律 + 黄金对拍测试（连续跑 vs 单步逐位比对，即 T5）。
+- **追溯**：FR4 / FR5 / NFR4 / D2 / UC6-E2 / T5；补 §1.1 缺口；关联 ADR-001、ADR-003。
+
+### 15.2 SolveEvent 相位序（对照真实 icoFoam.C，行号已核实）
+
+每个相位携带一个 `nodeID`（= `analysis-model §3` 思维导图节点 id），联动层据此同时点亮：思维导图节点（脉冲）+ 源码行（§5 映射表）+ 公式（§7）+ 结果面板（④⑤⑥）。这张表就是「**协作视图**」的算子级落地：
+
+| 序 | SolvePhase | icoFoam.C 行 | nodeID | 联动效果（一处执行 → 多处响应）|
+|---|---|---|---|---|
+| 0 | `timeStepBegin(step,time)` | 67–69 | `icoFoam` | ⑨ 时间轴前进；游标入 solver 根节点 |
+| 1 | `op(.ddt,.lhs)` | 77 | `fvm.ddt` | ① 高亮 ∂U/∂t + ③ L77 + 图 UEqn 入边 |
+| 2 | `op(.div,.lhs)` | 78 | `fvm.div` | ① ∇·(UU)（用 phi）+ ③ L78 |
+| 3 | `op(.laplacian,.lhs)` | 79 | `fvm.laplacian` | ① ν∇²U + ③ L79 |
+| 4 | `assembleMomentum` | 75–80 | `icoFoam.UEqn` | 图 UEqn 节点脉冲；② 探针看该矩阵 A/H |
+| 5 | `op(.grad,.rhs)` | 84 | `fvc.grad(p)` | ① −∇p 进右端 + ③ L84（**fvc 显式** vs fvm 隐式同屏对比）|
+| 6 | `solveMomentum(residual)` | 82–85 | `icoFoam.UEqn` | 动量预测解；④ U 矢量刷新 |
+| 7 | `pisoCorrectorBegin(c)` | 88–91 | `icoFoam.piso` | ⑨ 子步指示灯亮第 c 档（D2 两档下钻）|
+| 8 | `op(.flux,.rhs)` | 92–97 | `fvc.flux` | 面通量 phiHbyA + ③ L95 |
+| 9 | `assemblePressure(c)` | 109–112 | `icoFoam.pEqn` | pEqn = `fvm.laplacian`(隐式左端) `==` `fvc.div`(显式右端)，**王牌对比**|
+| 10 | `solvePressure(c,residual)` | 114–116 | `icoFoam.pEqn` | 压力 PCG 解；⑥ 残差追加点；⑤ p 云图刷新 |
+| 11 | `correctFlux(c)` | 118–121 | `field.phi` | phi = phiHbyA − pEqn.flux()；连续性误差↓ |
+| 12 | `correctVelocity(c)` | 126–127 | `fvc.grad(p)` | U = HbyA − rAU·∇p；④ U 矢量刷新 |
+| 13 | `pisoCorrectorEnd(c,contErr)` | 124 | `icoFoam.piso` | 子步收尾（continuityErrs）|
+| 14 | `timeStepEnd(report)` | 130 | `icoFoam` | StepReport；⑨ 时间轴落点 |
+
+> 单步两档（D2）的语义：**时间步单步** = 驱动游标 advance 至下一个 `timeStepEnd`；**PISO 子步单步** = advance 一个相位即停。**T5 不变量**：游标按相位推进 n 步得到的场，必须与连续 `run` 跑 n 步逐位一致——因为游标只是把同一套 `step()` 算术**重新切相位、不改运算与顺序**。
+
+### 15.3 类型草案（示意，④ 详设细化；纯 Swift、零 UI）
+
+```swift
+public enum OperatorKind { case ddt, div, laplacian, grad, flux, interpolate }
+public enum PhaseRole   { case lhs, rhs }          // fvm 进左端 / fvc 进右端
+
+public enum SolveEvent {                            // 纯值类型，可单测、可序列化回放
+    case timeStepBegin(step: Int, time: Double)
+    case op(OperatorKind, role: PhaseRole, nodeID: String)
+    case assembleMomentum(nodeID: String)               // "icoFoam.UEqn"
+    case solveMomentum(residual: Double, nodeID: String)
+    case pisoCorrectorBegin(index: Int, nodeID: String)
+    case assemblePressure(index: Int, nodeID: String)   // "icoFoam.pEqn"
+    case solvePressure(index: Int, residual: Double, nodeID: String)
+    case correctFlux(index: Int, nodeID: String)        // "field.phi"
+    case correctVelocity(index: Int, nodeID: String)
+    case pisoCorrectorEnd(index: Int, continuityError: Double, nodeID: String)
+    case timeStepEnd(report: StepReport)
+}
+
+public final class SolveCursor {                    // 同步、确定性、可恢复
+    public func advance() -> SolveEvent              // 执行下一相位，就地更新场
+    public var atTimeStepBoundary: Bool { get }
+    public func reset()                              // D3：编辑后重置重算
+}
+```
+
+> 联动层（②已锚定的「单一事实源」`SessionVM`，§6）消费事件：`highlightedNodeID ← event.nodeID`（执行游标脉冲）、`iteration ← (step,corrector,residual)`；播放模式用 `AsyncStream<SolveEvent>` 拉取、单步模式直呼 `advance()`。**引擎仍零 UI 依赖**：它只产出 `SolveEvent` 值，谁消费、怎么渲染概不与闻。
