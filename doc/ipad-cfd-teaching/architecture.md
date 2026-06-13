@@ -1,8 +1,8 @@
 # iPad CFD 教学程序 · 架构设计文档
 
 > 版本：v0.3（草拟中 · ③架构设计）　|　日期：2026-06-13（v0.2 定稿 2026-06-10）
-> 修订史：v0.3 — 进入 ③架构设计。已完成：§13 ADR 台账（正规化 §0 的 7 条决策，ADR-001..007）；§14 D1–D4 裁决；§15 引擎↔联动层事件接口（补 §1.1 缺口，ADR-011）。待并入：资源层契约升级（思维导图 graph + FR7 ContextPack 挂点）、ADR-008..010（分层/GPL/图形化编辑），评审后冻结。
-> 评审状态：**§2 类映射与 §4 案例数据结构已对照本仓库逐项核实并冻结**（评审记录见 §2.1、§4.5）。§13/§15 ADR 与事件接口已成形；资源层契约（item 4）与全文评审冻结待办。
+> 修订史：v0.3 — 进入 ③架构设计。已完成：§13 ADR 台账（正规化 §0 的 7 条决策，ADR-001..007）；§14 D1–D4 裁决；§15 引擎↔联动层事件接口（补 §1.1 缺口，ADR-011）；§16 资源层契约升级（并入思维导图 graph + 预留 FR7 ContextPack 挂点）。**剩最后一步**：补 ADR-008..010（分层/GPL/图形化编辑）+ 用例场景走查 + 评审冻结。
+> 评审状态：**§2 类映射与 §4 案例数据结构已对照本仓库逐项核实并冻结**（评审记录见 §2.1、§4.5）。§13/§15/§16 已成形；全文评审冻结（⑤）待办。
 > 定位：**OpenFOAM 的「引桥课」**——在 iPad 上零环境成本走通一次「从输入到流场」的完整闭环，并直接对照真实 OpenFOAM 源码，让初学者带着心智模型去面对真正的工具。
 
 ---
@@ -558,3 +558,47 @@ public final class SolveCursor {                    // 同步、确定性、可�
 ```
 
 > 联动层（②已锚定的「单一事实源」`SessionVM`，§6）消费事件：`highlightedNodeID ← event.nodeID`（执行游标脉冲）、`iteration ← (step,corrector,residual)`；播放模式用 `AsyncStream<SolveEvent>` 拉取、单步模式直呼 `advance()`。**引擎仍零 UI 依赖**：它只产出 `SolveEvent` 值，谁消费、怎么渲染概不与闻。
+
+---
+
+## 16. 资源层契约升级（并入思维导图 graph + 预留 FR7 ContextPack 挂点）
+
+§5 原定资源层只放一张 `mappings`（符号 → 源码行 + 公式 + 解释）——一堆「卡片」。②（`analysis-model §2.4 / §3`）给领域模型新增了 `Relationship`（思维导图的「边」）：卡片之间需要「连线」。故资源层契约由 `mappings` 升为 `mappings + graph{nodes, edges}`，并为 FR7（M5）预留 ContextPack 生成挂点。
+
+### 16.1 升级后的资源层契约（顶层形状）
+
+```jsonc
+{
+  "version": 1,                       // 资源格式版本：新增字段只升版本、不破旧数据
+  "mappings": [ /* §5 既有：symbol → 源码行/公式/解释，冻结不动 */ ],
+  "graph": {                          // 并入②思维导图（analysis-model §3）
+    "nodes": [
+      { "id": "fvm.laplacian", "kind": "operator",
+        "title": "fvm::laplacian — 隐式扩散",
+        "sourceFile": "applications/legacy/incompressible/icoFoam/icoFoam.C",
+        "lineStart": 79, "lineEnd": 79,
+        "mappingId": "fvm.laplacian",     // 指回 mappings 的卡片（节点≠重复存源码）
+        "x": 320, "y": 140 }              // D4：手工坐标（可选；缺省留给将来自动布局）
+    ],
+    "edges": [
+      { "from": "icoFoam.UEqn", "to": "fvm.laplacian",
+        "type": "contributesLHS", "arrow": "single", "label": "ν∇²U" }
+    ]
+  },
+  "contextPackHook": null             // FR7/M5 预留：M5 在此插 ContextPack 生成规则；现为 null，不堵死
+}
+```
+
+字段枚举（`node.kind` / `edge.type` / `edge.arrow`）沿用 `analysis-model §3.2`，不在此重复。
+
+### 16.2 三条设计纪律（为什么这么切）
+
+1. **节点不重复存源码，只用 `mappingId` 指回卡片**：源码/公式/解释的唯一事实源仍是 `mappings`（§5）；graph 只加「结构与连线」。避免同一段源码两处维护、两处漂移。
+2. **坐标可选（D4）**：`x/y` 是手工布局（MVP）；字段可缺省，将来切自动布局时旧数据不失效——**开放扩展、不破旧（开放-封闭原则）**。
+3. **ContextPack 只留挂点、不现在实现（FR7/M5）**：`ContextPack`（喂 AI 的资料包）= 某 `mappingId` 的卡片内容 +（可选）当前 `SolveEvent`/求解状态（§15）。M5 才生成；③ 只保证它**可由现有结构装配而成**（卡片已在 mappings、状态已在事件流），并留 `contextPackHook`，使 M5 是「加规则」而非「改格式」。
+
+### 16.3 构建期校验（资源层的「每阶段末验证」）
+
+沿用 `analysis-model §3.3` 的 lint，在资源打包时跑（红绿灯式可验收）：① `edge.from/to` 必须存在于 `nodes`；② `type/arrow` 在枚举内；③ 非 `concept` 节点的 `sourceFile:行区间`对照真仓库真实存在（= 验收 T7 映射真实性）；④ 无孤儿节点。
+
+> 追溯链（一条干净的可追溯实例）：需求 §9（思维导图候选概念）→ ② 领域模型新增 `Relationship`（analysis-model §2.4）→ ③ 资源层 `graph.edges`（本节）→ ⑥ 验收 T7。需求一路落到数据格式，链不断。
