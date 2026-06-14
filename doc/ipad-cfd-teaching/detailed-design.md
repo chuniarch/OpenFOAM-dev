@@ -274,4 +274,96 @@ extension IcoFoam {
 
 ---
 
-> 状态：**④-1 详设完成并落盘**（待 ④-7 统一评审冻结）。下一步 **④-2**：给 `FvMatrix` 加"按 cell 取该行系数(aP/各 aN)"只读访问器（接 UC5 探针 / T6）。
+## ④-2　`FvMatrix` 探针只读访问器（按 cell 取该行 aP/aN）
+
+### ④-2.1 在干嘛 / 为什么（一句话）
+
+给 UC5 探针开一扇**只读窗口**：点一个 cell → 看它在矩阵里那一行（`aP·自己 + Σ aN·各邻居 = b`）。验收 **T6**：探针读到的 aP/aN 须与引擎矩阵该行**完全一致**。③§17.1 走查留的待办。
+
+### ④-2.2 难点：矩阵按 LDU 稀疏存，"取一行"要沿面捡
+
+引擎矩阵不按"网格表格"存，而是 OpenFOAM 的 **LDU**：只存`diag`（每 cell 一个 aP）+ 每条**内部面**的 `upper`/`lower`（见 `FvMatrix.swift` L16-38）。因为 CFD 矩阵绝大多数元素是 0（一 cell 只耦合紧邻几个）。代价：取第 c 行得**沿 c 的每条面把系数捡出来**——而这正是求解器 `gaussSeidel`/`H()` 已在做的事（`ref.isOwner ? upper[ref.face] : lower[ref.face]`，`LinearSolver.swift` L99-101）。探针**复用同一套寻址 `mesh.cellFaceRefs[c]`** → 与求解器读同一份系数 → **T6 由构造保证**。
+
+### ④-2.3 设计决策
+
+- **主选型（需求方已拍板）**：**A 交『矩阵行』结构**——引擎返回自描述的 `MatrixRow{cell, aP, neighbours:[(cell,aN)], b}`，正好是探针要显示的形状。引擎嚼细、UI 保持笨（关注点分离，ADR-008）；这个结构本身就是 T6 要核对的对象。（落选 B 原始散件 / C 暴露 LDU 数组：把"矩阵怎么存"的耦合漏给 UI。）
+- **派生①　一个泛型 `MatrixRow<Source>`**：标量(p)/矢量(U) 两个矩阵的**系数 aP/aN 都是 `Double`**（几何/通量系数对每个速度分量相同，见 `LinearSolver` 注释 L86-87），**只有右端 b 类型不同**（`Double` vs `Vector2`）。故行骨架共用、用泛型参数化 `b` 的类型，避免重复寻址逻辑。
+- **派生②　只读、不依赖场**：`row()` 只读矩阵自身（系数 + 右端），**不碰流场**。UC5 要的"**邻居贡献**" `aN·x_N` 由联动层把 `aN` 配上它手里的当前场值 `x_N` 算出——引擎给系数、UI 配场值，各管一段。
+
+### ④-2.4 图纸：类型 + 访问器（可编译级；纯值类型、Equatable 供 T6 对拍）
+
+```swift
+public struct NeighbourCoeff: Equatable {
+    public let cell: Int        // 邻居 cell id（点亮"离散模板"高亮用）
+    public let aN: Double       // 该邻居的耦合系数（off-diagonal）
+}
+
+public struct MatrixRow<Source: Equatable>: Equatable {
+    public let cell: Int                     // 被探的 cell
+    public let aP: Double                    // 对角（自重）系数
+    public let neighbours: [NeighbourCoeff]  // 各内部面邻居 + 其 aN
+    public let b: Source                     // 右端项（p: Double / U: Vector2）
+}
+
+// 寻址复用：与 gaussSeidel/H() 同一套 cellFaceRefs → 读同一份系数（T6 根因）
+extension LduCoeffs {
+    func neighbourCoeffs(of cell: Int, mesh: StructuredMesh) -> [NeighbourCoeff] {
+        mesh.cellFaceRefs[cell].map { ref in
+            NeighbourCoeff(cell: ref.other,
+                           aN: ref.isOwner ? upper[ref.face] : lower[ref.face])
+        }
+    }
+}
+
+extension FvScalarMatrix {                   // 压力 pEqn
+    public func row(_ cell: Int) -> MatrixRow<Double> {
+        MatrixRow(cell: cell, aP: coeffs.diag[cell],
+                  neighbours: coeffs.neighbourCoeffs(of: cell, mesh: mesh),
+                  b: source[cell])
+    }
+}
+extension FvVectorMatrix {                    // 动量 UEqn
+    public func row(_ cell: Int) -> MatrixRow<Vector2> {
+        MatrixRow(cell: cell, aP: coeffs.diag[cell],
+                  neighbours: coeffs.neighbourCoeffs(of: cell, mesh: mesh),
+                  b: source[cell])
+    }
+}
+```
+
+### ④-2.5 供给侧：探针从哪拿到"当前矩阵"（连 ④-1 游标）
+
+探针要读的是**当前那一步**的 `UEqn`/`pEqn`，它们是 ④-1 游标的溢出字段（`private`）。游标开两个**只读**口（§15"引擎向 UI 暴露只读数据"同源）：
+
+```swift
+extension SolveCursor {
+    public var momentumMatrix: FvVectorMatrix? { UEqn }   // assemble 后有值，否则 nil
+    public var pressureMatrix: FvScalarMatrix? { pEqn }
+}
+```
+
+联动层（④-3）据探中 cell 取行：`cursor.pressureMatrix?.row(probedCell)` → `MatrixRow` → 画卡 + 高亮 `neighbours[].cell`。
+
+### ④-2.6 边界的处理（设计须讲清，否则探针会"少一块"）
+
+`cellFaceRefs[c]` **只含内部面**；**边界效应**（如 movingWall 的 Dirichlet）在装配时已并入 `diag[c]` 与 `source[c]`（`Fvm.laplacian` L74-80：`diag[bf.cell] -= w; source[bf.cell] -= w·Ub`）。故 `MatrixRow`：
+- 不为边界面列"邻居"（边界没有"对侧 cell"）；
+- 边界的影响**体现在 `aP` 偏大、`b` 含 `w·Ub`** 上。
+→ 这忠实反映了**被求解的系统**（求解器看到的就是这个行），T6 成立。**UC5-E1（点到 patch 边界面）** 显示该 patch 的 BC（type/value）而非内部系数，由 UI 分流（④-3/④-5）；④-2 只覆盖"点到 cell"。
+
+### ④-2.7 可测试性：T6 判据（无工具链，给"能写出的单测"）
+
+| 判据 | 设计 |
+|---|---|
+| **T6-主（行=矩阵该行）** | 取随机解向量 `x` 与代表性 cell `c`，断言 `row(c).aP·x[c] + Σ_n aN_n·x[n] == LinearSolver.matVec(M,x)[c]`（**逐位**）。两边都用同一 `diag/upper/lower` → 必相等；这证明 `row(c)` 忠实等于 M 的第 c 行。矢量版同理（`Vector2` 运算）。|
+| **T6-aP** | `row(c).aP == M.coeffs.diag[c]`。|
+| **T6-模板** | `Set(row(c).neighbours.map{$0.cell})` == `c` 的内部面邻居集合（独立由 `cellFaceRefs` 列举）。|
+| **T6-对称（pEqn 专属，加分）** | `pEqn` 对称（`laplacianSPD` 令 `upper==lower`）→ `row(c)` 到 n 的 `aN` == `row(n)` 到 c 的 `aN`。（动量 `div` 非对称，不适用——正好教"对流让矩阵不对称"。）|
+
+### ④-2 小结
+
+加 2 个值类型（`NeighbourCoeff` / 泛型 `MatrixRow<Source>`）+ 2 个 `row(_:)` 访问器（复用 `cellFaceRefs` 寻址）+ 游标 2 个只读矩阵口；T6 由"探针与求解器读同一份系数"**从构造上**保证。边界效应并入 aP/b 已讲清。引擎仍零 UI、只读不改场。
+
+---
+
+> 状态：**④-1、④-2 详设完成并落盘**（待 ④-7 统一评审冻结）。下一步 **④-3**：联动层 `SessionVM` 详设（单一事实源字段、消费 `AsyncStream<SolveEvent>`、两档单步/播放/暂停/重置 状态机）。
