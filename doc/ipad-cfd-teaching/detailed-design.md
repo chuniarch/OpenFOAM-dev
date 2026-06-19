@@ -366,4 +366,188 @@ extension SolveCursor {
 
 ---
 
-> 状态：**④-1、④-2 详设完成并落盘**（待 ④-7 统一评审冻结）。下一步 **④-3**：联动层 `SessionVM` 详设（单一事实源字段、消费 `AsyncStream<SolveEvent>`、两档单步/播放/暂停/重置 状态机）。
+## ④-3　联动层 `SessionVM` 详细设计（单一事实源 + 状态机）
+
+### ④-3.1 在干嘛 / 为什么（一句话）
+
+`SessionVM` = 引擎游标（④-1）和 UI 之间的**调度台 + 一块"当前帧信息板"**。信息板 = **单一事实源**（所有面板只读它 → 永远一致）；调度台 = **状态机**（播放/暂停/两档单步/重置）。接住 UC4、FR5、D2、D3。
+
+### ④-3.2 援引 ③ 契约（原文见对话；要点）
+
+- `§1`/`§6`：联动层 `@Observable`，单一事实源 = `highlightedNodeID + iterationState + probedCell`；"一处操作、多处响应"。
+- `§15.1` ADR-011：联动层在游标上提供 **`AsyncStream<SolveEvent>`（播放）** 与 **`step()/stepSubPhase()`（两档单步）**。
+- `§15.3`：消费事件 `highlightedNodeID ← event.nodeID`、`iteration ← (step,corrector,residual)`；**播放用流拉取、单步直呼 `advance()`**；引擎仍零 UI。
+- `§15.2`：时间步单步 = advance 至 `timeStepEnd`；PISO 子步单步 = advance 一相位即停。
+- `§14` D2 两档单步 / D3 重置重算（`cursor.reset()`）。
+- `UC4` 后置：迭代状态为单一事实源，所有面板一致；重置二次确认（E1）。
+
+### ④-3.3 设计决策（A + 派生）
+
+- **主选型（需求方拍板）**：**A 主线程计时器/异步循环**驱动播放——主线程开一个**可取消的异步循环**把同步 `advance()` 包成节奏可控的事件流；暂停=取消循环。**不引入后台线程**，引擎保持同步确定（T5/ADR-001 不破）。（落选 B 后台线程：并发入侵、与 T5 精神相悖；C 绑帧率：变速/单步难做。）
+- **派生①**：`SessionVM` 标 `@MainActor @Observable`；播放 `Task` 跑在主 actor，与 `advance()` 串行 → 无数据竞争。
+- **派生②**：用显式 `enum PlaybackState` 当状态机（呼应 ④-1 状态机教法）。
+- **派生③**：可视化场（④⑤）用**快照发布**——VM 在时间步末把 `U/p` 拷进 `@Observable` 数组（20×20=400 cell，拷贝极廉），触发 SwiftUI 刷新；避免"改引擎内部数组不触发观察"的坑。
+
+### ④-3.4 图纸：单一事实源字段（精化 §6 草图）
+
+```swift
+struct IterationState: Equatable {
+    var step = 0;  var time = 0.0          // 时间步 / 物理时刻
+    var corrector = 0                       // 当前 PISO 子步 (0..<nCorr)
+    var phaseLabel = ""                     // 当前相位人话名（"组装动量"/"解压力"…）→ ⑨
+    var uResidual = 0.0, pResidual = 0.0    // 最近动量/压力残差
+    var continuityError = 0.0
+}
+enum PlaybackState: Equatable { case idle, playing, paused, finished }
+struct ResidualPoint: Equatable { let step: Int; let corrector: Int; let residual: Double }
+
+@MainActor @Observable
+final class SessionVM {
+    // —— 单一事实源（所有面板只读这里）——
+    var highlightedNodeID: String?          // 执行游标脉冲：点亮源码行/公式/思维导图节点
+    var iteration = IterationState()        // 迭代坐标
+    var probedCell: Int?                     // 探针选中的 cell（UC5/④-2）
+    var playback: PlaybackState = .idle      // 播放器状态机
+    var residualHistory: [ResidualPoint] = [] // ⑥ 残差曲线累积
+    var velocity: [Vector2] = []            // ④ 矢量图快照（时间步末刷新）
+    var pressure:  [Double]  = []           // ⑤ 压力云图快照
+    var lastReport: StepReport?             // 状态栏/⑨
+
+    private let solver: IcoFoam
+    private var cursor: SolveCursor { solver.cursor }
+    private let endTime: Double             // 来自 controlDict
+    private var playTask: Task<Void, Never>?
+    var playbackPacing: Duration = .milliseconds(40)  // 播放节奏（变速）
+
+    init(solver: IcoFoam, endTime: Double) { self.solver = solver; self.endTime = endTime }
+}
+```
+
+### ④-3.5 图纸：消费事件流（apply）+ 播放适配（AsyncStream）+ 播放/暂停
+
+```swift
+extension SessionVM {
+    // —— 把一张事件卡"写进信息板"（§15.3：nodeID/step/corrector/residual ← event）——
+    private func apply(_ e: SolveEvent) {
+        switch e {
+        case .timeStepBegin(let s, let t):       iteration.step = s; iteration.time = t; iteration.corrector = 0
+        case .op(_, _, let id):                  highlightedNodeID = id; iteration.phaseLabel = label(e)
+        case .assembleMomentum(let id):          highlightedNodeID = id
+        case .solveMomentum(let r, let id):      highlightedNodeID = id; iteration.uResidual = r
+        case .pisoCorrectorBegin(let i, let id): iteration.corrector = i; highlightedNodeID = id
+        case .assemblePressure(let i, let id):   iteration.corrector = i; highlightedNodeID = id
+        case .solvePressure(let i, let r, let id):
+            iteration.corrector = i; iteration.pResidual = r; highlightedNodeID = id
+            residualHistory.append(ResidualPoint(step: iteration.step, corrector: i, residual: r))
+        case .correctFlux(let i, let id), .correctVelocity(let i, let id):
+            iteration.corrector = i; highlightedNodeID = id
+        case .pisoCorrectorEnd(let i, let ce, _): iteration.corrector = i; iteration.continuityError = ce
+        case .timeStepEnd(let report):
+            lastReport = report
+            velocity = solver.U.internalField    // 快照 → 触发 ④⑤ 刷新（派生③）
+            pressure = solver.p.internalField
+        }
+    }
+
+    // —— 播放适配（§15.1 "AsyncStream 作播放适配"）：同步 advance() 包成事件流，主 actor，无后台线程 ——
+    private func makeEventStream() -> AsyncStream<SolveEvent> {
+        AsyncStream { continuation in
+            let task = Task { @MainActor in
+                while cursor.time < endTime {
+                    continuation.yield(cursor.advance())
+                    try? await Task.sleep(for: playbackPacing)   // 节奏 + 让位 SwiftUI 重绘
+                }
+                continuation.finish()
+            }
+            continuation.onTermination = { _ in task.cancel() }
+        }
+    }
+
+    func play() {
+        guard playback != .playing, cursor.time < endTime else { return }
+        playback = .playing
+        playTask = Task { @MainActor in
+            for await e in makeEventStream() {
+                guard playback == .playing else { break }
+                apply(e)
+            }
+            if cursor.time >= endTime { playback = .finished }
+        }
+    }
+    func pause() { guard playback == .playing else { return }; playback = .paused; playTask?.cancel(); playTask = nil }
+}
+```
+
+### ④-3.6 图纸：两档单步（D2）+ 重置（D3）+ 探针接线（④-2）
+
+```swift
+extension SessionVM {
+    // D2-档1：PISO 子步级（advance 一相位即停，§15.2）
+    func stepPhase() {
+        guard playback != .playing else { return }
+        apply(cursor.advance()); playback = .paused
+    }
+    // D2-档2：时间步级（advance 到 timeStepEnd，§15.2）
+    func stepTimeStep() {
+        guard playback != .playing else { return }
+        while true { let e = cursor.advance(); apply(e); if case .timeStepEnd = e { break } }
+        playback = .paused
+    }
+    // D3：重置重算（编辑后）。UI 侧先二次确认（UC4-E1）再调本方法
+    func reset() {
+        pause(); cursor.reset()
+        iteration = IterationState(); highlightedNodeID = nil; lastReport = nil
+        residualHistory.removeAll(); velocity = []; pressure = []; playback = .idle
+    }
+    // 探针（UC5 / ④-2）：读当前压力矩阵该行
+    func probe(cell: Int?) { probedCell = cell }
+    var probedRow: MatrixRow<Double>? { probedCell.flatMap { cursor.pressureMatrix?.row($0) } }
+}
+```
+
+### ④-3.7 单一事实源 → 各面板 映射（"一处操作、多处响应"落地）
+
+| 信息板字段 | 驱动哪些面板（§6 编号）|
+|---|---|
+| `highlightedNodeID` | ③源码行高亮 + ①公式高亮 + 思维导图节点脉冲（§16）|
+| `iteration`（step/corrector/phaseLabel/残差）| ⑨时间轴/子步指示灯 + 状态栏 |
+| `residualHistory` | ⑥残差/收敛曲线 |
+| `velocity` / `pressure` | ④速度矢量·流线 / ⑤压力云图 |
+| `probedCell` / `probedRow` | ②数据探针（aP/各 aN + 高亮邻居 cell）|
+
+> 机制：以上全是 `@Observable` 属性；`apply()` 一改，SwiftUI 各面板**自动**重算。引擎只产 `SolveEvent` 值，不知道有谁在看（ADR-001/ADR-008）。
+
+### ④-3.8 ③ ↔ ④ 对应表
+
+| ③ 架构原文（出处）| ④-3 把它落成 |
+|---|---|
+| §1/§6 单一事实源 `highlightedNodeID/iterationState/probedCell` | `SessionVM` 的 `@Observable` 字段（+ 播放态/残差史/场快照）|
+| §6 "一处操作、多处响应" | `apply(event)` 写板 → `@Observable` 触发各面板刷新（§④-3.7 映射）|
+| §15.1 "AsyncStream（播放）+ step()/stepSubPhase()（两档单步）" | `makeEventStream()→AsyncStream` 供 `play()` 消费；`stepTimeStep()/stepPhase()` 两档 |
+| §15.3 "nodeID/step/corrector/residual ← event；播放走流、单步直呼 advance" | `apply()` 的 switch 写板；`play()` 走流、`stepX()` 直呼 `cursor.advance()` |
+| §15.2 两档单步语义 | `stepTimeStep()` 循环到 `.timeStepEnd`；`stepPhase()` advance 一次 |
+| §14 D2 / D3 | `PlaybackState` + 两单步命令 / `reset()=cursor.reset()+清板` |
+| UC4 后置"所有面板一致" | 面板只读 `SessionVM`；播放与单步共用 `advance()` ⇒ 终态一致（继承 T5）|
+
+### ④-3.9 可测试性判据（无 UI 也能测）
+
+| 判据 | 设计 |
+|---|---|
+| **S1 播放=单步（终态一致）** | 同 case 两个 VM：A `play()` 跑到 `finished`；B 反复 `stepPhase()` 到末。断言 `A.velocity == B.velocity`、`pressure` 同（继承 ④-1 T5）。|
+| **S2 状态机合法** | 枚举 play→pause→stepPhase→play→reset 序列，断言 `PlaybackState` 转移合法、`reset()` 后 `iteration==IterationState()`、`residualHistory` 空。|
+| **S3 板=事件** | 喂一串已知 `SolveEvent`，断言 `apply` 后 `iteration/highlightedNodeID/residualHistory` 与事件载荷逐一对应。|
+| **S4 探针接线** | `probe(cell:c)` 后 `probedRow == cursor.pressureMatrix?.row(c)`（接 ④-2 T6）。|
+
+### ④-3.10 诚实边界 / 连带增补
+
+- **连带给 ④-1 游标加 2 个只读口**（小增补，登记）：`var time: Double { Double(step)*dt }`（播放循环判终点用）；`pressureMatrix/momentumMatrix`（④-2 已加）。
+- **播放节奏 vs 逐相位脉冲**：`playbackPacing` 大 → 能看清源码高亮逐相位移动；≈0 → 视觉上每时间步刷新一次。两者底层都是同一串 `advance()`，不影响数值。
+- **`label(_:)`**（相位→人话名）是纯展示映射表，⑤实现时补；不影响逻辑。
+
+### ④-3 小结
+
+`SessionVM` = `@MainActor @Observable` 单一事实源（节点高亮/迭代/探针/播放态/残差史/场快照）+ 状态机（`play` 走主 actor `AsyncStream`、`stepPhase`/`stepTimeStep` 两档直呼 `advance`、`reset` 重置）。**播放与单步共用同一套 `advance()`** ⇒ 终态一致（继承 T5）、引擎仍零 UI。给出 §④-3.7 面板映射 + ③↔④ 对应表 + 4 条测试判据。
+
+---
+
+> 状态：**④-1、④-2、④-3 详设完成并落盘**（待 ④-7 统一评审冻结）。下一步 **④-4**：资源层 §16 契约落成具体 `Codable` 类型 + 构建期 lint 工具（接 UC6 / T7）。
