@@ -100,6 +100,22 @@ public struct AIConsent: Sendable {
 
 > **最该记住的一条**：StyleTwin 有后端，容易把"调 AI"写死成"只走自家后端"。**别写死**——把 `AIProvider` 设计成接口，让"后端代理"和"端上直连"都是它的实现之一。否则将来 CFD（端上、离线优先）没法复用。
 
+### §4.1 所以要写两套代码吗？——不。一个接口、两个小实现
+
+常见疑问：CFD 想"用户自填 API key、端上直连"，StyleTwin"强制走后端"——**这不需要两套代码**，而是**同一个 `AIProvider` 接口、两个小实现**：
+
+- `DirectProvider`（CFD）：拿用户填的 API key，端上直接 HTTPS 调模型厂商。≈ 一个文件。
+- `BackendProxyProvider`（StyleTwin）：调自家后端，后端藏 key 再转发模型。≈ 一个文件。
+
+二者**实现同一个 `AIProvider`**（同样的 `complete`/`stream`）。它们**上面的一切**——`ChatSession`、聊天 UI、`AIRequest`、同意流、重试降级——**只写一次、完全不变**，根本不知道自己在跟哪种 Provider 说话。
+
+> 比喻：墙上**插座**形状统一（接口），背后电从**市电/太阳能/发电机**来（实现）都行；电器（ChatSession/UI）只认插座、不管电从哪来。
+
+- **写一次（共享，≈9 成代码）**：`AIProvider` 协议 + 值类型 + `ChatSession` + 聊天 UI + 同意流 + 韧性。
+- **每 App 各写一小块（≈1 成）**：自己的 Provider 实现（CFD 一个 `DirectProvider`、StyleTwin 一个 `BackendProxyProvider`）。
+
+> 设计建议：**让 StyleTwin 后端的 AI 接口"长得像 `AIProvider`"**（同样收 messages+attachments+options、流式吐 text delta），这样 `BackendProxyProvider` 只是薄薄一层转发，回流到 CFD 时几乎零摩擦。
+
 ---
 
 ## §5 待定实现决策（留给 StyleTwin 的实现讨论拍板）
