@@ -550,4 +550,180 @@ extension SessionVM {
 
 ---
 
-> 状态：**④-1、④-2、④-3 详设完成并落盘**（待 ④-7 统一评审冻结）。下一步 **④-4**：资源层 §16 契约落成具体 `Codable` 类型 + 构建期 lint 工具（接 UC6 / T7）。
+## ④-4　资源层契约 `Codable` 类型 + 构建期 lint 插件
+
+### ④-4.1 在干嘛 / 为什么（一句话）
+
+资源层 = 一批"教学内容数据"（卡片：源码/公式/解释；思维导图：节点+边）。④-4 把 ③ §16 的 **JSON 契约**落成具体 **Swift `Codable` 类型**（对象↔JSON 自动互转），再设计一个**构建期 lint 插件**当"出版前校对员"，自动体检数据（接验收 **T7 映射真实性**）。
+
+### ④-4.2 援引 ③ 契约（原文见对话；要点）
+
+- `§16.1` 顶层：`{version, mappings, graph{nodes,edges}, contextPackHook}`；node 带 `mappingId` 指回卡片、`x/y` 可选(D4)。
+- `§16.2` 纪律：①节点不重复存源码、`mappingId` 指回；②坐标可选；③`contextPackHook` 留挂点不实现。
+- `§16.3` lint：①`edge.from/to`∈nodes；②`type/arrow`在枚举内；③非`concept`节点`sourceFile:行区间`真实存在(=T7)；④无孤儿。
+- `§3.2` 枚举：`node.kind` / `edge.type` / `edge.arrow`（取值见下）。
+- `§5` 卡片字段：id/title/swiftSymbol/sourceFile/lineStart/lineEnd/explanationMD/latex/relatedImpl。
+- `§5(②)` **T7**：每个非 concept 节点的源码行区间在真仓库**存在且内容一致**。
+
+### ④-4.3 设计决策
+
+- **主选型（需求方拍板）**：**A 构建期插件**——做成 SwiftPM `BuildToolPlugin`，编译 App 时自动跑 lint；数据违规→**编译失败**（红灯、最早拦截，贴合 §16.3「打包时跑」）。
+- **派生①　枚举把非法值挡在门外**：`kind/type/arrow` 用 Swift 枚举 → JSON 写了非法值，**`Codable` 解码阶段就抛错**，根本生不成 `ResourceBundle`。故 §16.3 规则②**由解码守门、无需额外运行时检查**（与 ④-2「T6 由构造保证」同一精神）。
+- **派生②　唯一事实源**：源码/公式/解释只存在 `mappings` 卡片里；`graph` 节点只用 `mappingId` 指回（§16.2 纪律①），lint 额外检查"`mappingId` 指向的卡片存在"。
+
+### ④-4.4 图纸：`Codable` 类型（JSON 契约 → 可编译类型）
+
+```swift
+public struct ResourceBundle: Codable, Equatable {
+    public var version: Int                       // 格式版本（加字段只升版本、不破旧数据）
+    public var mappings: [MappingEntry]           // §5 卡片
+    public var graph: Graph                        // §16 思维导图
+    public var contextPackHook: ContextPackHook?   // FR7/M5 预留，现为 nil
+}
+
+public struct MappingEntry: Codable, Equatable {  // §5 卡片：symbol → 源码/公式/解释
+    public var id: String                          // "fvm.laplacian"
+    public var title: String
+    public var swiftSymbol: String?                // "Fvm.laplacian(_:_:)"
+    public var sourceFile: String
+    public var lineStart: Int
+    public var lineEnd: Int
+    public var explanationMD: String               // Markdown 解释
+    public var latex: String?                      // 交 SwiftMath 渲染
+    public var relatedImpl: String?
+}
+
+public struct Graph: Codable, Equatable {
+    public var nodes: [GraphNode]
+    public var edges: [GraphEdge]
+}
+
+public struct GraphNode: Codable, Equatable {
+    public var id: String
+    public var kind: NodeKind
+    public var title: String
+    public var sourceFile: String?                 // concept 节点可无源码
+    public var lineStart: Int?
+    public var lineEnd: Int?
+    public var mappingId: String?                  // 指回 mappings 卡片（不重复存源码）
+    public var x: Double?                          // D4 手工坐标，可选（缺省不失效）
+    public var y: Double?
+}
+
+public struct GraphEdge: Codable, Equatable {
+    public var from: String                        // node id
+    public var to: String                          // node id
+    public var type: EdgeType
+    public var arrow: EdgeArrow
+    public var label: String?
+}
+
+// 三个枚举 = §3.2；非法值在 Codable 解码阶段即被拒（“把非法值挡在门外”）
+public enum NodeKind: String, Codable, CaseIterable {
+    case solver, equationAssembly, op = "operator", field, control, concept   // op 因 operator 是关键字
+}
+public enum EdgeType: String, Codable, CaseIterable {
+    case assembles, calls, dataFlow, contributesLHS, contributesRHS, derivedFrom, mathEquiv, inherits
+}
+public enum EdgeArrow: String, Codable, CaseIterable { case single, double, none }
+
+public struct ContextPackHook: Codable, Equatable { /* M5 预留，现空壳 */ }
+```
+
+### ④-4.5 图纸：lint 校验逻辑（§16.3 四规则 + T7）
+
+```swift
+public struct LintError: Equatable { public let location: String; public let message: String }
+
+public enum ResourceLinter {
+    /// sourceRoot = 真仓库根，用于 T7 行区间核验。返回空数组 = 体检通过（绿灯）。
+    public static func lint(_ b: ResourceBundle, sourceRoot: URL) -> [LintError] {
+        var errs: [LintError] = []
+        let nodeIDs = Set(b.graph.nodes.map(\.id))
+        let mapIDs  = Set(b.mappings.map(\.id))
+
+        // 规则①：edge.from/to 必须存在于 nodes
+        for e in b.graph.edges {
+            if !nodeIDs.contains(e.from) { errs.append(.init(location: "edge \(e.from)→\(e.to)", message: "from 节点不存在")) }
+            if !nodeIDs.contains(e.to)   { errs.append(.init(location: "edge \(e.from)→\(e.to)", message: "to 节点不存在")) }
+        }
+        // 规则②：type/arrow 在枚举内 —— 已由 Codable 解码守门（非法值解码即失败），此处无需再查。
+
+        // 规则③ = T7：非 concept 节点的 sourceFile:行区间在真仓库真实存在
+        for n in b.graph.nodes where n.kind != .concept {
+            guard let f = n.sourceFile, let s = n.lineStart, let e = n.lineEnd else {
+                errs.append(.init(location: "node \(n.id)", message: "非 concept 节点缺 sourceFile/行号")); continue
+            }
+            let url = sourceRoot.appendingPathComponent(f)
+            guard let total = try? String(contentsOf: url).split(separator: "\n", omittingEmptySubsequences: false).count else {
+                errs.append(.init(location: "node \(n.id)", message: "源码文件不存在: \(f)")); continue
+            }
+            if s < 1 || e < s || e > total {
+                errs.append(.init(location: "node \(n.id)", message: "行区间 \(s)-\(e) 超出 1-\(total)"))
+            }
+        }
+        // 规则④：无孤儿节点（每个节点至少被一条边触及）
+        let touched = Set(b.graph.edges.flatMap { [$0.from, $0.to] })
+        for n in b.graph.nodes where !touched.contains(n.id) {
+            errs.append(.init(location: "node \(n.id)", message: "孤儿节点：无任何边相连"))
+        }
+        // 附加（§16.2 纪律①）：mappingId 必须指向存在的卡片
+        for n in b.graph.nodes {
+            if let m = n.mappingId, !mapIDs.contains(m) {
+                errs.append(.init(location: "node \(n.id)", message: "mappingId 指向不存在的卡片: \(m)"))
+            }
+        }
+        return errs
+    }
+}
+```
+
+### ④-4.6 图纸：SwiftPM 构建插件（你选的 A —— 编译时跑、违规即失败）
+
+```swift
+// 注册为 BuildToolPlugin；构建 App 时自动执行。
+@main struct ResourceLintPlugin: BuildToolPlugin {
+    func createBuildCommands(...) async throws -> [Command] {
+        // 1) 定位资源 JSON（Resources/mapping.json）+ 仓库源码根（用于 T7）
+        // 2) 解码 ResourceBundle —— 解码失败(非法枚举/结构) 即构建失败（规则②守门）
+        // 3) ResourceLinter.lint(bundle, sourceRoot:) → 每条 LintError 作为 build 诊断 error 发出
+        //    有 error → 红灯：构建失败，开发当场看到坏映射
+    }
+}
+```
+
+> 诚实边界：① T7 的"**内容一致**"本设计核到"路径+行区间存在"；逐字内容核对可加一条"快照测试"（把行区间文本存基线、变更即提示），属增强项。② 插件构建期需读真仓库源码做 T7；上架包内嵌的是冻结的源码片段（§5），开发期 `sourceRoot`=仓库根。
+
+### ④-4.7 ③ ↔ ④ 对应表
+
+| ③ 架构原文（出处）| ④-4 落成 |
+|---|---|
+| §16.1 顶层 `{version,mappings,graph,contextPackHook}` | `ResourceBundle: Codable`（4 字段一一对应）|
+| §16.1 node 字段(含 mappingId / x,y) | `GraphNode: Codable`（sourceFile/x/y 为可选）|
+| §16.1 edge 字段(from/to/type/arrow/label) | `GraphEdge: Codable` |
+| §5 卡片字段 | `MappingEntry: Codable` |
+| §3.2 三枚举(kind/type/arrow) | `NodeKind`/`EdgeType`/`EdgeArrow`（非法值解码即拒）|
+| §16.2 纪律①(mappingId 指回) | `GraphNode.mappingId` + lint 查它指向存在卡片 |
+| §16.2 纪律②(坐标可选) | `x/y: Double?` |
+| §16.2 纪律③(ContextPack 挂点) | `contextPackHook: ContextPackHook?` = nil |
+| §16.3 lint 规则①②③④ + T7 | `ResourceLinter.lint()` 四查 + 解码守门 + 行区间核验 |
+| §16.3「打包时跑」| SwiftPM `BuildToolPlugin`（选型 A）|
+
+### ④-4.8 可测试性：T7 / lint 判据
+
+| 判据 | 设计 |
+|---|---|
+| **T7 主判据** | 用**真实** icoFoam 映射包跑 `lint(bundle, sourceRoot: 仓库根)` → 返回**空数组**（每个节点行区间在真仓库都存在）。|
+| L1 断边 | 边指向不存在节点 → 报"from/to 节点不存在"。|
+| L2 越界行号 | 节点行区间超文件长度 → 报"行区间超出"。|
+| L3 孤儿 | 无边相连的节点 → 报"孤儿节点"。|
+| L4 非法枚举 | JSON 写 `"type":"bogus"` → **解码即抛错**（生不成 bundle），构建失败。|
+| L5 悬空 mappingId | `mappingId` 指向不存在卡片 → 报。|
+
+### ④-4 小结
+
+把 §16 JSON 契约落成 6 个 `Codable` 类型 + 3 个枚举（非法值解码即拒）；lint 实现 §16.3 四规则 + T7 行区间核验 + mappingId 完整性；封装为 SwiftPM 构建插件（违规→编译失败）。给出 ③↔④ 对应表 + T7 主判据（真包跑 lint 返回空）。
+
+---
+
+> 状态：**④-1..④-4 详设完成并落盘**（待 ④-7 统一评审冻结）。下一步 **④-5**：编辑闭环（ADR-010）——`CaseData` ↔ 表单 ↔ dict 文本 三方同步、校验(UC2-E2 行级报错)、安全钳制(UC2-E1/NFR2/C4)。
