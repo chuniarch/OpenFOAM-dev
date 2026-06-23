@@ -1,7 +1,8 @@
 # iPad CFD 教学程序 · 架构设计文档
 
-> 版本：v0.2　|　日期：2026-06-10
-> 评审状态：**§2 类映射与 §4 案例数据结构已对照本仓库逐项核实并冻结**（评审记录见 §2.1、§4.5）。
+> 版本：v0.3　|　日期：2026-06-23（v0.2 定于 2026-06-10）
+> 修订史：v0.3 — ③架构设计收口：①§0 的 7 条决策 + FR7 后端正规化为 ADR-001～008；②裁定 D1–D5 并落为 ADR-001/009/010/011/012；③补 §1.1 引擎事件接口缺口（ADR-009）；④升级资源层契约（ADR-010）；⑤新增 §6.1 协作视图（SolverEvent 流）；⑥新增 §13 架构评审记录（断言核实 + 8 用例场景走查）。**本版冻结 ③阶段。**
+> 评审状态：**§2 类映射与 §4 案例数据结构已对照本仓库逐项核实并冻结**（评审记录见 §2.1、§4.5）；**ADR 全套 12 份见 `adr/`，索引见 §0.1**；**③ 架构评审通过见 §13**。
 > 定位：**OpenFOAM 的「引桥课」**——在 iPad 上零环境成本走通一次「从输入到流场」的完整闭环，并直接对照真实 OpenFOAM 源码，让初学者带着心智模型去面对真正的工具。
 
 ---
@@ -17,6 +18,27 @@
 | 案例组织 | **数据驱动、可插拔**：案例 = 字典数据 + solver 标识 | 加新案例 = 加数据，不动 UI/框架 |
 | 数学公式渲染 | **SwiftMath**（原生，离线，数学模式 LaTeX 子集） | PDE 标准记号足够；快、无 WebView |
 | 可视化 | **Metal / SwiftUI Canvas** | 矢量场、云图、流线、残差曲线 |
+
+> 上表 7 条已正规化为正式 ADR（背景指回 SRS、列落选项与否决理由、写后果与缓解），见 §0.1。
+
+### 0.1 架构决策记录（ADR）索引
+
+全套 ADR 落于 `doc/ipad-cfd-teaching/adr/`。每份四段式：背景（指回需求）→ 选项 → 决策 → 后果（含缓解 + 被否决项及否决理由）。
+
+| ADR | 标题 | 裁定的决策点 | 状态 | 主要追溯 |
+|---|---|---|---|---|
+| ADR-001 | FR7 AI 后端 + 可替换接口（默认端侧+RAG / 可选 BYO-key / 无后端） | **D5** | 已接受 | FR7, NFR1, NFR5, C3, §10 |
+| ADR-002 | 求解引擎语言 = Swift（忠实移植） | — | 已接受 | C1, C2 |
+| ADR-003 | 源码展示 = 真实 C++ 内嵌 + GPL 分期 | — | 已接受 | FR4, C3 |
+| ADR-004 | 四层分层 + 引擎零 UI 依赖 | — | 已接受 | ASR, §1.1 |
+| ADR-005 | 联动层单一事实源 | — | 已接受 | FR4, FR5 |
+| ADR-006 | 数据驱动可插拔案例 | — | 已接受 | 演进策略 |
+| ADR-007 | 数学渲染 = SwiftMath | — | 已接受 | NFR4, NFR5 |
+| ADR-008 | 可视化 = Metal / SwiftUI Canvas | — | 已接受 | NFR4, FR3, NFR6 |
+| ADR-009 | 引擎事件接口：算子级 + PISO 子步级广播 | **D2** | 已接受 | FR4, FR5, UC4-6, §1.1 缺口 |
+| ADR-010 | 资源层契约升级：mappings + graph + ContextPack/AIProvider | **D4** | 已接受 | §9, FR4, FR7 |
+| ADR-011 | UC6 detail 呈现：固定侧栏 split | **D1** | 已接受 | NFR6, UC6 |
+| ADR-012 | 编辑后重算：重置重算（MVP） | **D3** | 已接受 | FR2, NFR4, UC2-E3 |
 
 ---
 
@@ -53,7 +75,7 @@
 - ✅ **零 UI 依赖已验证**：`FoamMiniEngine` 全部源码的 import 仅 `Foundation`（1 处），无 SwiftUI/UIKit/Metal；CLI 与测试仅依赖引擎本身。纪律成立。
 - ✅ **M0 目录结构与引擎层模块划分一致**：Core（Mesh/Fields/Vector2/DimensionSet）、Discretisation（Fvm/Fvc）、Matrix（FvMatrix）、Solvers（IcoFoam/LinearSolver/PisoControl）、Case（CavityCase），独立 SwiftPM 包 + 测试。
 - ✅ 四层落地进度符合里程碑：引擎层已成形；资源层部分成形（案例数据有，源码片段 + 映射表待 M2）；展示层、联动层未开工（M1/M2）。
-- 📌 **设计缺口（列入 M1 架构细化议题）**：§3 要求「每个算子执行时向联动层广播自己对应真实源码哪一段」，但引擎当前对外只有粗粒度接口——`run(onStep:)` 回调 + `StepReport`（每时间步一次）。算子级广播（如 `fvm.ddt` 执行 → 源码面板高亮 icoFoam.C 第 77 行）需要新设计一个事件流接口（候选：引擎事件枚举 + AsyncStream），它是联动层「单一事实源」的数据来源，属 M1/M2 的前置条件。
+- ✅ **设计缺口已由 ADR-009 解决（2026-06-23，v0.3）**：§3 要求「每个算子执行时向联动层广播自己对应真实源码哪一段」，但引擎当前对外只有粗粒度接口——`run(onStep:)` 回调 + `StepReport`（每时间步一次，已对照 `IcoFoam.swift` 核实）。**ADR-009 定下事件流接口形状**：`enum SolverEvent`（时间步边界 / PISO 子步边界 / 算子执行 / 矩阵组装 / 线性求解+残差 / 场更新，各带 `nodeID`）经 `events() -> AsyncStream<SolverEvent>` 广播；保留 `step()`/`run()` 供 headless 与测试。D2 选「时间步 + PISO 子步两档」后，此接口须达子步粒度。它是联动层单一事实源（ADR-005）的数据来源，nodeID 与资源层 graph（ADR-010）共用同一命名空间。属 M1/M2 前置条件，详见 §6.1 协作视图。
 
 ---
 
@@ -144,7 +166,7 @@ while piso.correct() {
 Swift 实现要点：
 - 运算符重载 `+ - * ==` 让方程可读；`FvMatrix` 实现 `==`（移项）、`A()`（对角）、`H()`（off-diagonal 贡献）。
 - `fvm.*` 返回 `FvMatrix`，`fvc.*` 返回 `Field`，**类型系统强制区分隐式/显式**（编译期就教对了概念）。
-- 每个算子在执行时向**联动层**广播「我正在执行 + 我对应真实源码哪一段」。
+- 每个算子在执行时向**联动层**广播「我正在执行 + 我对应真实源码哪一段」——此广播的接口形状由 **ADR-009**（`SolverEvent` + `AsyncStream`）定下，数据流见 §6.1。
 
 ---
 
@@ -243,6 +265,16 @@ struct CaseData: Codable {
 
 > 合规提醒：OpenFOAM 为 GPL v3。内嵌其源码片段须保留许可头、标注来源，并评估本 App 的分发许可（详见 §9 未决项）。
 
+### 5.1 资源层契约升级（v0.3，ADR-010）
+
+②建模新增了「源码思维导图」需求（requirements §9、analysis-model §2.4/§3）：原映射表只有**节点**，思维导图还要**有类型的边**。故资源层契约由「单一 mappings」升级为 **`{mappings.json, graph.json}`** 两份：
+
+- `mappings.json`：上方 MappingEntry（symbol ↔ 源码段 ↔ 公式 ↔ 解释）。
+- `graph.json`：`nodes[{id, kind, title, sourceFile, lineStart, lineEnd, mappingId, x, y}]`（**`x,y` = 手工坐标，D4/ADR-010**）+ `edges[{from, to, type, arrow, label}]`（枚举见 analysis-model §3.2，`contributesLHS/RHS` 直接把 fvm/fvc 之分可视化）。
+- **构建期 lint**（analysis-model §3.3）：边端点存在 / 枚举合法 / 非 `concept` 节点源码行对照真仓库存在（验收测试 T7）/ 无孤儿节点。
+- **节点 id 与 ADR-009 的 `SolverEvent.nodeID` 共用同一命名空间** → 运行时执行游标（动态）与思维导图（静态）天然对齐。
+- **FR7 预留挂点（M5 实现，③ 不堵死）**：`makeContextPack(nodeID, iterationState?) -> ContextPack` 生成上下文包；`protocol AIProvider { func answer(_ pack: ContextPack, prompt: String) -> AsyncStream<String> }` 留默认端侧 + 可选 BYO-key 两档实现位（ADR-001）。
+
 ---
 
 ## 6. 展示面板与联动数据流
@@ -273,6 +305,35 @@ struct CaseData: Codable {
 ```
 
 「一处操作、多处响应」是教学 App 的灵魂：点 ③ 源码某行 → ① 公式高亮 + ④ 结果上闪烁受影响区域 + ② 探针显示该项贡献的矩阵系数。
+
+> UC6 源码视图布局（ADR-011/D1）：思维导图 = 左画布（overview，graph.json 节点+边）+ 右侧栏（detail，点节点载入其 MappingEntry），`NavigationSplitView` 同屏并列，贴 NFR6 横屏多栏 + 避开经典 CAE 平铺文件树。
+
+### 6.1 协作视图（块间通信：SolverEvent 流）
+
+结构视图（§1 分层）回答"有哪些块"，本节回答"块间怎么通信"。教学 App 的核心通信链是**引擎 → 联动层 → 各面板**的单向数据流，由 ADR-009 的事件流驱动：
+
+```
+引擎层 IcoFoam.step()                   联动层 SessionVM(@Observable)        展示层 SwiftUI 各面板
+─────────────────────────              ──────────────────────────         ────────────────────
+  每个算子/子步执行处 yield                  消费 AsyncStream<SolverEvent>          自动重渲染（无需手动通知）
+    SolverEvent {                  ──▶    ├─ .operator(nodeID) ─────▶ 更新   ──▶ ③ 源码高亮该行
+      .timeStepBoundary             stream  │                       highlightedNodeID  ① 公式高亮对应项
+      .pisoCorrectorBoundary  (D2)         │                                            ⑥ 思维导图执行游标(UC6-E2)
+      .operatorExecuted(nodeID)            ├─ .matrixAssembled ─────▶ 更新   ──▶ ② 探针:该 cell 行 aP/aN
+      .matrixAssembled                     │                       iterationState     (UC5)
+      .linearSolved(residual)              ├─ .linearSolved ────────▶ 追加   ──▶ ⑥ 残差/Courant 曲线
+      .fieldUpdated                        │                                            (FR3)
+    }                                      └─ .fieldUpdated ────────▶ 触发   ──▶ ④⑤ 矢量/云图刷新
+                                                                  场快照
+  保留 step()/run() 供 headless/测试    ◀── 暂停 = 停止消费;单步 = 消费到下一个子步边界即停(UC4/D2)
+```
+
+通信纪律：
+
+- **单向**：引擎只 `yield` 纯数据 `SolverEvent`（Foundation-only，不 import UI——守 ADR-004）；联动层是唯一订阅者，把事件折叠进**单一事实源**（ADR-005）；SwiftUI 因 `@Observable` 自动重渲染，**面板之间不直接通信**（杜绝 N×N 耦合）。
+- **暂停/单步 = 背压**：UC4 的暂停 = 停止从 AsyncStream 拉取；单步 = 拉取到下一个"子步边界"事件即停（D2 两档）。无需引擎侧加锁。
+- **id 对齐**：`SolverEvent.nodeID` 与 `graph.json` 节点 id 同一命名空间（ADR-010），故"运行时高亮哪段源码"与"思维导图哪个节点"是同一把钥匙。
+- **编辑回流**：⑦ 字典编辑 → `CaseData` 变更 → 重置重算（ADR-012/D3）→ 引擎重新发流，闭合"改→算→看→懂"回路（requirements §10.2 强反馈通道）。
 
 ---
 
@@ -321,7 +382,8 @@ iCavity/                       # 产品工作名
 ├─ Resources/
 │  ├─ Cases/cavity/            # 结构化案例数据
 │  ├─ Sources/                 # 内嵌真实 OpenFOAM 源码片段（含许可头）
-│  └─ mapping.json             # 函数↔源码映射
+│  ├─ mappings.json            # 函数↔源码映射（MappingEntry）
+│  └─ graph.json               # 思维导图节点+边（ADR-010，含手工坐标）
 └─ Tests/  (EngineTests：与参考解对拍)
 ```
 
@@ -392,3 +454,46 @@ iCavity/                       # 产品工作名
 3. 并行整理 §5 映射表首批条目（icoFoam.C 的 PISO 各行）。
 
 > 许可合规（§11）：已决定原型期先内嵌真实源码开发、不阻塞；相关改造（外链 + 自写等价讲解、分发许可确认）列为**上架前**待办，见 §11.4。
+
+---
+
+## 13. ③ 架构评审记录（2026-06-23，v0.3 冻结依据）
+
+③ 的验证 = 架构评审（评审而非跑测试，因架构主靠"可评审"）。分两道：断言核实（verification，对照写下的事实）+ 场景走查（用 ② 用例与质量场景在架构上走一遍）。
+
+### 13.1 断言核实（对照真仓库）
+
+| 断言 | 核实结果 |
+|---|---|
+| `icoFoam.C` UEqn 组装在 L75 起、PISO 循环含 `adjustPhi`(L99)/`setReference`(L114)/`pEqn.flux()` | ✅ 对照 `applications/legacy/incompressible/icoFoam/icoFoam.C` 一致 |
+| cavity 教程路径 `tutorials/legacy/incompressible/icoFoam/cavity/cavity/`（0/constant/system） | ✅ 存在 |
+| 引擎当前对外仅 `step(time:)->StepReport` + `run(endTime:onStep:)`（ADR-009 背景所依据的缺口事实） | ✅ 对照 `FoamMini/.../Solvers/IcoFoam.swift` 一致 |
+| 引擎零 UI 依赖（ADR-004） | ✅ 延续 §1.1 既有核实（import 仅 Foundation） |
+| §2 类映射 12 路径、§4 案例数据 | ✅ 沿用 v0.2 已冻结核实（§2.1、§4.5），本版未改动 |
+
+### 13.2 场景走查（② 的 8 用例 + 质量场景）
+
+逐条确认"每步有模块接得住 + 相关 NFR 不被违反"：
+
+| 用例 | 走查路径（架构上） | 接得住？ |
+|---|---|---|
+| UC0 引导 | 展示层 onboarding 浮层叠在各面板上，复用 UC1/UC6 路径 | ✅ |
+| UC1 运行 | ⑨→引擎 `run()`→`SolverEvent` 流（§6.1）→联动层→④⑤⑥ 刷新 | ✅ |
+| UC2 编辑 | ⑦`CaseData`改→重置重算（ADR-012）→引擎重发流；越界钳制在编辑器层（NFR2/C4 不被违反） | ✅ |
+| UC3 看结果 | ④⑤⑥ 读联动层场快照/残差序列；⑨ 时间轴回放 | ✅ |
+| UC4 控制 | 暂停=停止消费 AsyncStream，单步=消费到子步边界即停（ADR-009/D2） | ✅ |
+| UC5 探针 | 点 cell→联动层 `probedCell`→② 读引擎 `FvMatrix` 该行 aP/aN（依赖 `.matrixAssembled` 事件） | ✅ |
+| UC6 源码对照 | ③ graph.json 节点图（ADR-010）+ 侧栏 detail（ADR-011/D1）；运行时执行游标 = `.operatorExecuted(nodeID)`，nodeID 同一命名空间 | ✅ |
+| UC7 问 AI（M5） | 选中节点→`makeContextPack`→`AIProvider`（ADR-001/010 预留挂点）；断网降级在展示层（NFR5） | ✅ 挂点已留，不堵死 |
+
+**质量场景**：
+
+- **离线（NFR5）**：UC1–UC6 全链路无网络依赖（引擎/资源/渲染均本地）；仅 UC7 在线，默认端侧实现（ADR-001）可使其离线可用，断网降级路径在展示层。✅
+- **性能（NFR4）**：20×20 网格；Metal 渲染（ADR-008）+ AsyncStream 背压使单步无可感卡顿；运算符重载临时分配在小网格可接受（§10 风险表已记缓解位）。✅
+- **演进（加案例不改框架）**：新案例 = 加 CaseData（ADR-006）+ 加 graph/mappings 数据（ADR-010），框架不动。✅
+
+### 13.3 结论
+
+断言核实全过、8 用例 + 3 质量场景走查全部"有模块接得住、相关 NFR 不被违反"，无新增缺口。**architecture.md v0.3 冻结，③架构设计阶段收口。** D1–D5 全部裁定并落 ADR；§1.1 缺口由 ADR-009 解决。
+
+下一阶段 ④详设 的种子：ADR-009 `SolverEvent` 枚举的完整成员与 payload 类型；ADR-010 两份 JSON 的完整 schema 与 lint 工具；组合/引用（analysis-model §2.3）→ Swift 值/引用语义选型；Keychain 存取 BYO-key 的具体实现（ADR-001）。
