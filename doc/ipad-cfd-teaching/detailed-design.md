@@ -726,4 +726,139 @@ public enum ResourceLinter {
 
 ---
 
-> 状态：**④-1..④-4 详设完成并落盘**（待 ④-7 统一评审冻结）。下一步 **④-5**：编辑闭环（ADR-010）——`CaseData` ↔ 表单 ↔ dict 文本 三方同步、校验(UC2-E2 行级报错)、安全钳制(UC2-E1/NFR2/C4)。
+## ④-5　编辑闭环（ADR-010）：CaseData ↔ 表单 ↔ dict 文本
+
+### ④-5.1 在干嘛 / 为什么（一句话）
+
+同一份算例参数有三个样子要时刻一致：`CaseData`(结构化真数据) / 表单(滑杆等控件，NFR3) / dict 文本(真字典文字，教学法)。④-5 设计这套**三方同步** + **越界钳制**(UC2-E1/NFR2/C4) + **文本非法行级报错**(UC2-E2)。
+
+### ④-5.2 援引 ③ 契约（原文见对话；要点）
+
+- `ADR-010`：图形控件 + 等价 dict 文本**双向同步**，编辑作用于结构化 `CaseData`；负面债 = 双向同步 + 文本侧校验(UC2-E2)。
+- `§4.4` `CaseData`（已冻结）：control/schemes/solution/properties/mesh/fields + solver。
+- `UC2`：主流程④双向同步、⑤确认→重置重算(D3)；E1 越界钳制+解释；E2 文本非法行级标错不重算；E3 运行中编辑自动暂停。
+- `T2`改参重算 / `T3`越界钳制 / `T4`非法字典行级报错。
+
+### ④-5.3 设计决策（A + 派生）
+
+- **主选型（需求方拍板）**：**A `CaseData` 当唯一事实源（中枢）**。表单、文本都是它的**投影**：改哪个都先回流进 `CaseData`，再由它刷新另一个；文本非法只在文本侧标红、**不污染** `CaseData`（UC2-E2）。（落选 B 三方对等绑定：非法状态会传染、易死循环；C 文本只读：违反 FR2/ADR-010。）
+- **派生①　编辑来源守卫，防回流死循环**：一个 `active: {none,form,text}` 标记。表单改 → 写 `CaseData` → **程序性**重渲染文本（不触发解析）；文本改 → 解析 → 写 `CaseData`（表单经 `@Observable` 自动刷），**不**回渲文本（免冲掉光标）。
+- **派生②　钳制是写入 `CaseData` 的必经闸门**：表单值、解析出的文本值，**都过一遍 `SafetyRules`**，越界即拉回 + 给解释 → `CaseData` 永远合法（NFR2/C4）。
+
+### ④-5.4 图纸：校验/钳制 + 文本投影/解析
+
+```swift
+public struct ClampResult<T> { public let value: T; public let message: String? }  // message≠nil=被钳制
+
+public enum SafetyRules {                          // NFR2 / C4 防呆
+    /// deltaT 受 Courant 约束 Co = lidSpeed·deltaT/dx ≤ coMax
+    public static func clampDeltaT(_ dt: Double, lidSpeed: Double, dx: Double, coMax: Double = 1.0) -> ClampResult<Double> {
+        let safeMax = coMax * dx / max(lidSpeed, 1e-9)
+        return dt > safeMax
+            ? .init(value: safeMax, message: "deltaT=\(dt) 时 Courant>\(coMax)，会发散；已限制为 \(safeMax)")
+            : .init(value: dt, message: nil)
+    }
+    // clampNu(>0) / clampNCells(≥1) / clampEndTime(>0) … 各字段同构
+}
+
+public struct LineError: Equatable { public let line: Int; public let message: String }
+public enum ParseResult { case ok(CaseData); case errors([LineError]) }
+public enum DictText {
+    public static func render(_ c: CaseData) -> String { /* CaseData → 规范 dict 文本 */ }
+    public static func parse(_ text: String) -> ParseResult { /* MVP：只解析 cavity 子集；非法 token → [LineError] */ }
+}
+```
+
+### ④-5.5 图纸：`EditorVM`（唯一事实源 + 三方同步 + 提交）
+
+```swift
+@MainActor @Observable
+public final class EditorVM {
+    public private(set) var caseData: CaseData        // 唯一事实源(A)，永远合法
+    public private(set) var dictText: String          // 文本投影
+    public private(set) var lineErrors: [LineError] = []   // 文本侧行级报错（UC2-E2）
+    public private(set) var clampNotice: String?      // 越界钳制解释（UC2-E1）
+    public private(set) var isDirty = false
+
+    private enum Surface { case none, form, text }
+    private var active: Surface = .none               // 防回流循环的"编辑来源"守卫
+    private unowned let session: SessionVM            // 接 ④-3：提交后 reset+重算
+    private var dx: Double { caseData.mesh.length / Double(caseData.mesh.nx) }
+    private var lidSpeed: Double { caseData.movingWallSpeed }
+
+    public init(caseData: CaseData, session: SessionVM) {
+        self.caseData = caseData; self.session = session
+        self.dictText = DictText.render(caseData)
+    }
+
+    // 表单路径：校验钳制 → 写 CaseData → 程序性刷新文本
+    public func setDeltaT(_ dt: Double) {
+        active = .form
+        let r = SafetyRules.clampDeltaT(dt, lidSpeed: lidSpeed, dx: dx)
+        caseData.control.deltaT = r.value
+        clampNotice = r.message
+        dictText = DictText.render(caseData)           // 程序性，不触发解析
+        lineErrors = []; isDirty = true; active = .none
+    }
+    // setLidSpeed / setNu / setNCorrectors … 同构，均经各自 clamp
+
+    // 文本路径：解析 → 合法写 CaseData（表单自动刷）；非法只标红、不污染
+    public func editText(_ newText: String) {
+        active = .text
+        dictText = newText
+        switch DictText.parse(newText) {
+        case .ok(let parsed): caseData = clampAll(parsed); lineErrors = []; isDirty = true
+        case .errors(let errs): lineErrors = errs       // 行级标红、不动 caseData（UC2-E2/T4）
+        }
+        active = .none
+    }
+
+    public func beginEditing() { if session.playback == .playing { session.pause() } }  // UC2-E3
+    public func commit() {                              // D3 重置重算（接 ④-3）
+        guard lineErrors.isEmpty else { return }
+        session.applyCaseData(caseData); session.reset(); isDirty = false; clampNotice = nil
+    }
+}
+```
+
+### ④-5.6 三方同步数据流
+
+```
+表单改值 ──校验钳制──▶ CaseData ──render──▶ dict 文本   （程序性，不回触发解析）
+dict 文本改 ──parse──▶ 合法? ─是─▶ 钳制 ─▶ CaseData ──@Observable──▶ 表单自动刷新
+                         └─否─▶ lineErrors(行级标红)  ✗不动 CaseData ✗不重算
+提交 commit ─▶ session.applyCaseData + session.reset()（D3 重置重算）
+```
+
+> 关键：**所有入口都先汇进 `CaseData`、且都过钳制** → `CaseData` 恒合法；文本是唯一可能"暂时非法"的地方，其非法被 `lineErrors` 隔离在文本侧，不外溢。
+
+### ④-5.7 ③ ↔ ④ 对应表
+
+| ③ 架构原文（出处）| ④-5 落成 |
+|---|---|
+| ADR-010 表单↔dict 双向同步、作用于 `CaseData` | `EditorVM` 以 `caseData` 为唯一事实源(A)，表单/文本为投影 |
+| ADR-010「文本侧校验(UC2-E2 行级标错)」| `editText`→`parse`→`.errors`→`lineErrors`，不污染 caseData |
+| §4.4 `CaseData`（冻结）| `EditorVM.caseData`（中枢）|
+| UC2 主流程④ 双向同步 | `setX()`(表单→CaseData→render) + `editText()`(文本→parse→CaseData) |
+| UC2-E1 / T3 越界钳制+解释 | `SafetyRules.clamp*`→`ClampResult(value,message)`→`clampNotice` |
+| UC2-E2 / T4 文本非法行级标错 | `DictText.parse`→`[LineError]`→`lineErrors`，`commit` 拦截 |
+| UC2-E3 运行中编辑自动暂停 | `beginEditing()`→`session.pause()` |
+| UC2 主流程⑤ / D3 确认→重置重算 | `commit()`→`session.applyCaseData`+`session.reset()` |
+
+### ④-5.8 可测试性判据
+
+| 判据 | 设计 |
+|---|---|
+| **T3 越界钳制** | `setDeltaT(1.0)` → `deltaT==safeMax` 且 `clampNotice!=nil`（带原因）。|
+| **T4 非法字典** | `editText(非法)` → `lineErrors` 非空、`caseData` 不变、`commit()` 被拦。|
+| **T2 同步/往返** | 任意合法 `c`：`parse(render(c))==.ok(c)`；`setLidSpeed` 后 `dictText` 同步含新值。|
+| 防循环 | `setDeltaT` 不触发 `editText` 路径（`active` 守卫）。|
+| UC2-E3 | 运行中 `beginEditing()` → `session.playback==.paused`。|
+
+### ④-5 小结
+
+以 `CaseData` 为唯一事实源(A)：表单/文本皆投影、入口都经 `SafetyRules` 钳制 → `CaseData` 恒合法；文本非法被 `lineErrors` 隔离（UC2-E2）；`active` 守卫防循环；`commit` 接 ④-3 `reset` 重算(D3)、运行中编辑自动暂停(UC2-E3)。给出三方数据流 + ③↔④ 对应表 + 5 条判据。
+
+---
+
+> 状态：**④-1..④-5 详设完成并落盘**（待 ④-7 统一评审冻结）。下一步 **④-6（可选）** D1 侧栏 UX 评审，或直接 **④-7** 评审冻结 ④ 产物。
