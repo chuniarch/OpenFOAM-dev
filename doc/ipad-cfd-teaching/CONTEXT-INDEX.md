@@ -57,7 +57,7 @@ ea8dc1d9  交接文档收口
 | Phase 3+ — Architecture Design Recording | `session_01HBuV1PbrZ636drTHLZVvaH` | `claude/wonderful-ride-ds1ee5` | ✅ | ③ 冻结 v0.3（12 份 ADR、8 用例走查），等选下一步 |
 | Phase 4 — 详细设计 | `session_01PPftrcwP89b5EFVwnCpCWi` | `claude/festive-mccarthy-44aptr` | ✅ | ④ 冻结 v1.0，问要不要先列 M0 起步命令清单 |
 | Phase 6 — implementation kickoff | `session_012Lx1PNwGP88e4HqZxHwwTm` | `claude/blissful-noether-gdnfwa` | ✅ | 问先跑通验证，还是先补 DimensionSet / Mesh 单测 |
-| Doc — 跨项目文档使用 | `session_01UswR7WBNeQx7KqgqYez294` | `claude/vibrant-meitner-r7lsht` | ❌ → 回填中 | 从 modest-clarke 导出 4 份交接文档，给了 3 种跨仓库用法 |
+| Doc — 跨项目文档使用 | `session_01UswR7WBNeQx7KqgqYez294` | `claude/vibrant-meitner-r7lsht` | ❌ → 已回填 `context/cross-project-doc-usage.md` | 从 modest-clarke 导出 4 份交接文档，给了 3 种跨仓库用法 |
 
 ### 学习线（OpenFOAM 系列）→ `openfoam-learning/main`
 
