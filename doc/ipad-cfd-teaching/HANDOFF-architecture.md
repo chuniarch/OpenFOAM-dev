@@ -1,8 +1,12 @@
 # iPad CFD 教学 App — 需求与架构 交接摘要
 
+> **⚠️ 分支已重组（2026-08-28）**：本线产出现位于 **`openfoam-learning/main`**；原 `claude/*` 分支已归档到 `archive/*` 并删除。
+> 新会话请直接在该分支上工作并推送，不要再新建 `claude/*` 分支。会话对照见 `CONTEXT-INDEX.md`。
+
+
 > 用途：在**新对话**里粘贴此摘要，接续「需求/架构设计」线。
 > 本摘要**只含需求与架构设计**，停在设计高度——不含有限体积法理论（在另一对话），也不含具体代码实现（M0 引擎代码另见 `ipad-cfd-teaching/FoamMini/`，本线暂不深入）。
-> 开发分支：`claude/ecstatic-heisenberg-oA9a8`。
+> 开发分支：`openfoam-learning/main`。
 
 ---
 

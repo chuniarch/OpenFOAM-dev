@@ -9,7 +9,7 @@
 
 ## 0. 速览：这份文档是什么 / 本会话讲到哪
 
-- 本会话依据教学计划 `doc/ipad-cfd-teaching/openfoam-reading-plan.md`（该文件在 `claude/festive-mccarthy-44aptr` 分支）带学习者走**读源码前的物理预备**。计划把物理预备分四小块：**理论-A 场景 → 理论-B NS 方程 → 理论-C 四个变量 → 理论-D 雷诺数**。
+- 本会话依据教学计划 `doc/ipad-cfd-teaching/openfoam-reading-plan.md`（该文件在 `ipad-cfd-teaching/main` 分支）带学习者走**读源码前的物理预备**。计划把物理预备分四小块：**理论-A 场景 → 理论-B NS 方程 → 理论-C 四个变量 → 理论-D 雷诺数**。
 - **本会话实际完成**：
   - 理论-A（方腔场景）——**完整**；
   - 理论-B（不可压缩 NS 两条方程）——**完整**，且因学习者连续追问，**深挖了"守恒形式 vs 非守恒形式"、物质导数、雷诺输运定理**；
@@ -266,7 +266,7 @@ A 路完整路线图(仅①讲了): ①乘积法则 ②一维物质导数 ③一
 
 ## 5. 引用/提到过的 OpenFOAM 源码与算例位置
 
-> **诚实说明**：本会话仍在**物理预备**，**未逐行走读任何代码**。下列位置来自 reading-plan §2 的映射表——本会话是"**指了指、对了概念**"，并已在本分支（`openfoam-learning/main`）**逐条核实存在**。FoamMini 镜像文件在 `claude/festive-mccarthy-44aptr` 分支的 `ipad-cfd-teaching/FoamMini/` 下。
+> **诚实说明**：本会话仍在**物理预备**，**未逐行走读任何代码**。下列位置来自 reading-plan §2 的映射表——本会话是"**指了指、对了概念**"，并已在本分支（`openfoam-learning/main`）**逐条核实存在**。FoamMini 镜像文件在 `ipad-cfd-teaching/main` 分支的 `ipad-cfd-teaching/FoamMini/` 下。
 
 | # | 模块 | 真实 OpenFOAM 路径（已核实存在）| FoamMini 镜像 |
 |---|---|---|---|

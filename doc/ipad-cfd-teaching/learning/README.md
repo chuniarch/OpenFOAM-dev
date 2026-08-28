@@ -139,3 +139,22 @@
    并由此补上「数值扩散」这一课（见砖块 10 末尾）。
 🔜 **下一步**：砖块 11A —— 把动量方程离散成 `a_P·U_P = H(U) − V·(∇p)_P`，
    认出 `a_P` 就是你写过的分母（weightTotal）、`H(U)` 就是你写过的分子。
+
+---
+
+## 新对话开场白（把下面整段复制到新对话即可启动）
+
+```
+先执行：git fetch origin && git checkout -B openfoam-learning/main origin/openfoam-learning/main
+本会话请直接在该分支上工作并推送，不要新建 claude/* 分支。
+
+读取 doc/ipad-cfd-teaching/learning/README.md —— 这是本条 CFD 学习阶梯的总索引
+（砖块 1–11：从两个盒子间的墨水扩散，一路搭到 icoFoam 的 cavity）。
+配套：diffusion-notes.md（扩散专题公式与推导）、code/（各砖 Swift 代码）、
+context/（此前几次会话的完整上下文，含 OpenFOAM 架构导览与 icoFoam+cavity 物理预备）。
+
+我已经走到砖块 ___。请先确认我对上一砖的理解，再往下讲，不要从头重讲。
+教学风格：先大白话讲"这段在干嘛/为什么"，一次一小块，我能复述才算讲到位；
+每砖都要有可运行代码和物理验收尺子。
+新产出一律落盘到本分支并 commit/push。
+```
