@@ -1,7 +1,12 @@
 # iPad CFD 教学 App — 进入 ⑤实现 交接文档
 
+> **⚠️ 分支已重组（2026-08-28）**：本文提到的所有 `claude/*` 分支均已合并进 **`ipad-cfd-teaching/main`** 并删除。
+> 一律使用该分支；新会话请**直接在其上工作并推送**，不要再新建 `claude/*` 分支
+> （当初每个会话各建一个自动命名分支，正是产出散落的根源）。会话与产出的完整对照见 `CONTEXT-INDEX.md`。
+
+
 > 用途：在**新对话**中读取本文件，接续「需求对齐 + 软件工程教学」线，开始 **⑤实现（写代码）**。
-> 开发分支：`claude/festive-mccarthy-44aptr`（①②③④ 全部冻结产物都在此；**master 上没有这条线的文件**，须先 `git fetch origin claude/festive-mccarthy-44aptr` 再检出/合并）。
+> 开发分支：`ipad-cfd-teaching/main`（①②③④ 全部冻结产物都在此；**master 上没有这条线的文件**，须先 `git fetch origin && git checkout -B ipad-cfd-teaching/main origin/ipad-cfd-teaching/main`）。
 > 日期：2026-06-14
 
 ---
@@ -89,11 +94,11 @@
 ## 6. 新对话开场白（把下面整段复制到新对话即可启动）
 
 ```
-读取分支 claude/festive-mccarthy-44aptr 上的文件
+读取分支 ipad-cfd-teaching/main 上的文件
 doc/ipad-cfd-teaching/HANDOFF-stage5.md
 （新会话默认在 master 看不到它，请先
- git fetch origin claude/festive-mccarthy-44aptr 再检出/合并该分支。
- 若本会话被指派的开发分支不是它，先把 festive-mccarthy 合并进来再开工。）
+ git fetch origin && git checkout -B ipad-cfd-teaching/main origin/ipad-cfd-teaching/main。
+ 请直接在该分支上工作并推送，不要新建 claude/* 分支。）
 
 我们接续「需求对齐 + 软件工程教学」线，进入 ⑤实现（写代码）。务必先读该文件 §0，尤其：
 ① 我不是工程师、目前还不懂 OpenFOAM 代码和 Swift——写代码要边写边教，先大白话讲

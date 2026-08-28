@@ -1,7 +1,12 @@
 # iPad CFD 教学 App — 进入 ④详细设计 交接文档
 
+> **⚠️ 分支已重组（2026-08-28）**：本文提到的所有 `claude/*` 分支均已合并进 **`ipad-cfd-teaching/main`** 并删除。
+> 一律使用该分支；新会话请**直接在其上工作并推送**，不要再新建 `claude/*` 分支
+> （当初每个会话各建一个自动命名分支，正是产出散落的根源）。会话与产出的完整对照见 `CONTEXT-INDEX.md`。
+
+
 > 用途：在**新对话**中读取本文件，接续「需求对齐 + 软件工程教学」线，开始 **④详细设计**。
-> 开发分支：`claude/awesome-einstein-4ebjgx`（最新冻结的 ①②③ 全部产物都在此；**master 上没有任何这条线的文件**，须先 `git fetch origin claude/awesome-einstein-4ebjgx` 再检出/合并）。
+> 开发分支：`ipad-cfd-teaching/main`（最新冻结的 ①②③ 全部产物都在此；**master 上没有任何这条线的文件**，须先 `git fetch origin && git checkout -B ipad-cfd-teaching/main origin/ipad-cfd-teaching/main`）。
 > 日期：2026-06-13
 
 ---
@@ -72,10 +77,10 @@
 ## 5. 新对话开场白（把下面整段复制到新对话即可启动）
 
 ```
-读取分支 claude/awesome-einstein-4ebjgx 上的文件
+读取分支 ipad-cfd-teaching/main 上的文件
 doc/ipad-cfd-teaching/HANDOFF-stage4.md
 （新会话默认在 master 看不到它，请先执行
- git fetch origin claude/awesome-einstein-4ebjgx 再检出/合并该分支。
+ git fetch origin && git checkout -B ipad-cfd-teaching/main origin/ipad-cfd-teaching/main。
  若本会话被指派的开发分支不是它，请像③那样先把 awesome-einstein 合并进来再开工。）
 
 我们接续「需求对齐 + 软件工程教学」线。务必先读该文件 §0 的关键指示，尤其：

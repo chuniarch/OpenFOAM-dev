@@ -1,8 +1,13 @@
 # iPad CFD 教学 App — 进入 ③架构设计 交接文档
 
+> **⚠️ 分支已重组（2026-08-28）**：本文提到的所有 `claude/*` 分支均已合并进 **`ipad-cfd-teaching/main`** 并删除。
+> 一律使用该分支；新会话请**直接在其上工作并推送**，不要再新建 `claude/*` 分支
+> （当初每个会话各建一个自动命名分支，正是产出散落的根源）。会话与产出的完整对照见 `CONTEXT-INDEX.md`。
+
+
 > 用途：在**新对话**中读取本文件，接续「需求对齐 + 软件工程教学」线，开始 **③架构设计**。
-> 开发分支：`claude/modest-clarke-a70tkz`（新会话默认在 master，须先
-> `git fetch origin claude/modest-clarke-a70tkz` 再检出/合并才能看到这些文件）。
+> 开发分支：`ipad-cfd-teaching/main`（新会话默认在 master，须先
+> `git fetch origin ipad-cfd-teaching/main` 再检出/合并才能看到这些文件）。
 > 日期：2026-06-15（v1 创建于 2026-06-12，已随需求/分析迭代刷新）
 
 ---
@@ -13,7 +18,7 @@
 2. **最重要的纪律**：用户**不会去翻文件**。**重要内容必须完整写在对话里**，不能只改文件后给摘要。引用任何文档章节（如"§3"）前，**先把该章节全文贴出来**。用户已多次因"只改文件不贴正文"而叫停，切记。
 3. **当前位置**：①需求工程 **已冻结**（`requirements.md` **v1.4**）；②需求分析/建模 **已收口候选**（`analysis-model.md` **v0.4**）。**下一步是 ③架构设计，尚未正式开始。**
 4. **不跳步、不颠倒**：可回头改需求（已发生过 v1.1–v1.4 的回流），但不得在未对齐需求的情况下锁死下游设计。
-5. **协作风格**：理论先行；用本项目真实材料做实例；**决策交给用户拍板**（用 `AskUserQuestion`）；每次产出**落盘 + 全文呈现 + commit/push**；push 用 `git push -u origin claude/modest-clarke-a70tkz`。
+5. **协作风格**：理论先行；用本项目真实材料做实例；**决策交给用户拍板**（用 `AskUserQuestion`）；每次产出**落盘 + 全文呈现 + commit/push**；push 用 `git push -u origin ipad-cfd-teaching/main`。
 
 ---
 
@@ -64,10 +69,10 @@
 ## 5. 新对话开场白（把下面整段复制到新对话即可启动）
 
 ```
-读取分支 claude/modest-clarke-a70tkz 上的文件
+读取分支 ipad-cfd-teaching/main 上的文件
 doc/ipad-cfd-teaching/HANDOFF-stage3.md
 （新会话默认在 master 看不到它，请先执行
- git fetch origin claude/modest-clarke-a70tkz 再检出/合并该分支。）
+ git fetch origin && git checkout -B ipad-cfd-teaching/main origin/ipad-cfd-teaching/main。
 
 我们接续「需求对齐 + 软件工程教学」线。按该文件 §0 的指示办：
 重要内容直接写在对话里，不要只改文件给摘要；引用文档章节前先贴全文。

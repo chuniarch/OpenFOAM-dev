@@ -1,8 +1,13 @@
 # iPad CFD 教学 App — 需求对齐 + 软件工程教学 交接文档
 
+> **⚠️ 分支已重组（2026-08-28）**：本文提到的所有 `claude/*` 分支均已合并进 **`ipad-cfd-teaching/main`** 并删除。
+> 一律使用该分支；新会话请**直接在其上工作并推送**，不要再新建 `claude/*` 分支
+> （当初每个会话各建一个自动命名分支，正是产出散落的根源）。会话与产出的完整对照见 `CONTEXT-INDEX.md`。
+
+
 > 用途：在**新对话**中读取此文件，接续「需求对齐 + 软件工程方法教学」线。
-> 开发分支：`claude/ipad-cfd-handoff-arch-1dud7f`（注意：新会话默认检出 master，须先
-> `git fetch origin claude/ipad-cfd-handoff-arch-1dud7f` 并检出/合并该分支才能看到本文件所在目录）。
+> 开发分支：`ipad-cfd-teaching/main`（注意：新会话默认检出 master，须先
+> `git fetch origin ipad-cfd-teaching/main` 并检出/合并该分支才能看到本文件所在目录）。
 > 日期：2026-06-10
 
 ---
@@ -73,7 +78,7 @@ CFD/OpenFOAM 初学者（学生、自学者、课堂场景）：被环境配置�
 2. 下一课：**需求 → 架构的推导方法**——讲「架构显著性需求（ASR）」筛法：为什么 NFR4（性能）、C1（不能动态编译）这类条目对架构的影响远大于 FR 清单；演示从需求表逐条推导出架构决策（可对照仓库中已有的 architecture.md 验证推导结果，但注意：那份文档对用户是新东西，引用须贴全文）。
 3. 之后依次：②用例/领域建模 → ③架构设计（分层、ADR）→ ④接口与数据结构 → ⑤里程碑与垂直切片 → ⑥各阶段验证方法。每课先理论后实操。
 
-## 5. 相关文件（完整仓库路径，均在分支 claude/ipad-cfd-handoff-arch-1dud7f 上）
+## 5. 相关文件（完整仓库路径，均在分支 ipad-cfd-teaching/main 上）
 
 - 本文件：`doc/ipad-cfd-teaching/HANDOFF-requirements.md`
 - 既有架构设计 v0.2（上一轮产物，含 §1.1/§2.1/§4.5 评审记录；对用户而言是未读材料）：`doc/ipad-cfd-teaching/architecture.md`

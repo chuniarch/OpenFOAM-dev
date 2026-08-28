@@ -1,5 +1,10 @@
 # OpenFOAM 源码学习计划 — 针对 iPad CFD 教学项目（icoFoam + cavity）
 
+> **⚠️ 分支已重组（2026-08-28）**：本文提到的所有 `claude/*` 分支均已合并进 **`ipad-cfd-teaching/main`** 并删除。
+> 一律使用该分支；新会话请**直接在其上工作并推送**，不要再新建 `claude/*` 分支
+> （当初每个会话各建一个自动命名分支，正是产出散落的根源）。会话与产出的完整对照见 `CONTEXT-INDEX.md`。
+
+
 > **用途**：在**新开的对话**里，专门学习本项目用到的那一小片 OpenFOAM C++ 源码。读懂它，回头看 ③`architecture.md` / ④`detailed-design.md` 就不再吃力。
 > **关键便利**：本仓库 `OpenFOAM-dev` **本身就是 OpenFOAM 源码**——下列所有路径都能直接打开读（**已逐条核实存在**，2026-06-14）。
 > **另一个大便宜**：本项目的 `ipad-cfd-teaching/FoamMini/`（15 个 Swift 文件）**就是这条线的"简短可读版"**。学习法 = **先读 FoamMini 的 Swift（短、看懂逻辑）→ 再翻真实 OpenFOAM C++（认出同一个东西）**。
@@ -175,10 +180,10 @@
 ## 6. 新对话开场白（复制整段即可启动）
 
 ```
-读取分支 claude/festive-mccarthy-44aptr 上的文件
+读取分支 ipad-cfd-teaching/main 上的文件
 doc/ipad-cfd-teaching/openfoam-reading-plan.md
 （新会话默认在 master 看不到它，请先
- git fetch origin claude/festive-mccarthy-44aptr 再检出/合并该分支。）
+ git fetch origin && git checkout -B ipad-cfd-teaching/main origin/ipad-cfd-teaching/main。
 
 我是需求方 + 学习者，软件工程几乎全忘、不是工程师、目前还不懂 OpenFOAM 代码和 C++。
 我要学懂本项目（iPad CFD 教学 App，icoFoam 解 cavity）用到的那一小片 OpenFOAM 源码，
