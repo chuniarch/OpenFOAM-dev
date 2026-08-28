@@ -53,20 +53,20 @@ ea8dc1d9  交接文档收口
 | 会话 | Session ID | 当年的 outcome 分支 | 分支推送过？ | 最后停在哪 |
 |---|---|---|---|---|
 | Phase 1 & 2 — 需求工程 & 需求分析 | `session_01REXFAgf6o5ngWdocqYAH3D` | `claude/modest-clarke-a70tkz` | ✅ | 复核全部文档找 ADR；确认 ③ 尚无正式 ADR，给出 8 条候选决策（FR7 AI 后端优先） |
-| Phase 3 — 架构设计 | `session_011ChCfMnEd8TpgR5CBVKD72` | `claude/awesome-einstein-4ebjgx` | ❌ | 详设交接已备：architecture.md §1–17 映射、教学速查卡、FoamMini M0 定位、④ 工作计划 7 项 |
+| Phase 3 — 架构设计 | `session_011ChCfMnEd8TpgR5CBVKD72` | `claude/awesome-einstein-4ebjgx` | ❌ → 已回填 `context/phase3-architecture.md` | 详设交接已备：architecture.md §1–17 映射、教学速查卡、FoamMini M0 定位、④ 工作计划 7 项 |
 | Phase 3+ — Architecture Design Recording | `session_01HBuV1PbrZ636drTHLZVvaH` | `claude/wonderful-ride-ds1ee5` | ✅ | ③ 冻结 v0.3（12 份 ADR、8 用例走查），等选下一步 |
 | Phase 4 — 详细设计 | `session_01PPftrcwP89b5EFVwnCpCWi` | `claude/festive-mccarthy-44aptr` | ✅ | ④ 冻结 v1.0，问要不要先列 M0 起步命令清单 |
 | Phase 6 — implementation kickoff | `session_012Lx1PNwGP88e4HqZxHwwTm` | `claude/blissful-noether-gdnfwa` | ✅ | 问先跑通验证，还是先补 DimensionSet / Mesh 单测 |
-| Doc — 跨项目文档使用 | `session_01UswR7WBNeQx7KqgqYez294` | `claude/vibrant-meitner-r7lsht` | ❌ | 从 modest-clarke 导出 4 份交接文档，给了 3 种跨仓库用法 |
+| Doc — 跨项目文档使用 | `session_01UswR7WBNeQx7KqgqYez294` | `claude/vibrant-meitner-r7lsht` | ❌ → 回填中 | 从 modest-clarke 导出 4 份交接文档，给了 3 种跨仓库用法 |
 
 ### 学习线（OpenFOAM 系列）→ `openfoam-learning/main`
 
 | 会话 | Session ID | 当年的 outcome 分支 | 分支推送过？ | 最后停在哪 |
 |---|---|---|---|---|
-| OpenFOAM — 创作者背景 | `session_01Q9JqJAFZy8pD8yhkqSbUxE` | `claude/pensive-planck-zxB9l` | ❌ | 已答：OpenFOAM 创始人是机械工程 + CFD 背景，非纯 CS |
+| OpenFOAM — 创作者背景 | `session_01Q9JqJAFZy8pD8yhkqSbUxE` | `claude/pensive-planck-zxB9l` | ❌ → 已回填 `learning/context/openfoam-origins.md` | 已答：OpenFOAM 创始人是机械工程 + CFD 背景，非纯 CS |
 | OpenFOAM — 最小案例教学 | `session_01GN44s8UkLopir3Bhbt3P2q` | `claude/ecstatic-heisenberg-oA9a8` | ✅ | 学习阶梯（砖块 1–11）成文，开场提示词已生成 |
-| OpenFOAM — 架构解读 | `session_01PPW3yiCDdM1dyZ6KAMRxd2` | `claude/lucid-feynman-fx4lb8` | ❌ | 第 1 课讲完，等选方向：澄清概念 / 进第 2 课 / 要执行流程图 |
-| OpenFOAM — 学习 icoFoam cavity 案例 | `session_016L4vj8vVVvVokMSbxz95VN` | `claude/lucid-dirac-hic034` | ❌ | 讲完 U 和 p，问要不要继续讲 ν（粘度）和 φ（面通量） |
+| OpenFOAM — 架构解读 | `session_01PPW3yiCDdM1dyZ6KAMRxd2` | `claude/lucid-feynman-fx4lb8` | ❌ → 已回填 `learning/context/openfoam-architecture-tour.md` | 第 1 课讲完，等选方向：澄清概念 / 进第 2 课 / 要执行流程图 |
+| OpenFOAM — 学习 icoFoam cavity 案例 | `session_016L4vj8vVVvVokMSbxz95VN` | `claude/lucid-dirac-hic034` | ❌ → 已回填 `learning/context/icofoam-cavity-walkthrough.md` | 讲完 U 和 p，问要不要继续讲 ν（粘度）和 φ（面通量） |
 
 ### 其他相关会话
 
@@ -107,16 +107,24 @@ done
 ```
 git push origin --delete \
   claude/modest-clarke-a70tkz claude/wonderful-ride-ds1ee5 claude/festive-mccarthy-44aptr \
-  claude/blissful-noether-gdnfwa claude/ecstatic-heisenberg-oA9a8
+  claude/blissful-noether-gdnfwa claude/ecstatic-heisenberg-oA9a8 \
+  tmp-permission-probe
 ```
 
 （或在 GitHub 网页 Branches 页面逐个删除。）
 
-## 未决项
+## 已裁决
 
-**两份 v0.3 架构文档尚未收敛。** ③ 阶段被两个会话各自冻结过一次：
+**两份 v0.3 架构文档已收敛（2026-08-28）。** ③ 阶段曾被两个会话各自冻结，产生两份都叫 v0.3 的
+`architecture.md`。按「保留最新修改」裁决：
 
-- `architecture.md`（2026-06-13，Phase 4 线）：ADR 台账内联在 §13，续写到 §14–§17。`detailed-design.md` 与 `HANDOFF-stage4/5.md` 建立在此版之上。
-- `architecture-v0.3-adr-line.md`（2026-06-23，Phase 3+ 线）：ADR 拆成 12 份独立文件（`adr/`），§13 改为架构评审记录，§0 更详细，新增 §6.1 协作视图。
-
-两版在 §0–§12 各有改动，合并时**未做正文合并**——④ 详细设计只见过 06-13 那版。需要人工裁决后收敛为单一 v0.4。`analysis-model.md` 已完成合并（v0.4 的 D5 + ④ 线的 D1–D4 裁决列）。
+- **正文 §0–§13 取 2026-06-23 版**（`894b0436`，比 2026-06-13 版 `a627bc71` 晚 10 天）。该版把 ADR
+  拆成 `adr/` 下 12 份独立文件、§0 更详细、新增 §6.1 协作视图，§13 评审记录走查 8 个用例 + 3 个质量场景
+  （06-13 版 §17 只走查 5 个场景）。
+- **06-13 版独有的 §14–§17 整体接续在 §13 之后，章节号不变**。原因：06-23 版没有这些章节号，而
+  `detailed-design.md` 引用它们共 57 处（§14×4、§15×26、§16×24、§17×3）——直接丢弃会让 ④ 详细设计
+  过半的交叉引用悬空。
+- **§17 已被 §13 取代**，节内加了注记。保留它仅因 ④-2（UC5 矩阵行只读访问器）的立项依据出自 §17.1 的
+  走查发现；该缺口在 06-23 线中由 ADR-009 的 `.matrixAssembled` 事件另行解决。
+- 中转文件 `architecture-v0.3-adr-line.md` 已删除（内容已成为 `architecture.md` 正文）。
+- `analysis-model.md` 早前已合并：v0.4 的 D5 后端必要性辨析 + 06-13 线的 D1–D4 裁决列。
