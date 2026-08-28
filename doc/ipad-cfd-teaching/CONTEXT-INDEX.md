@@ -75,17 +75,42 @@ ea8dc1d9  交接文档收口
 | Phase 0 — 架构解读 | `session_014cezmDEefazTL8T43SgC6T` | 已归档。对流-扩散分析、离散误差 vs 迭代误差、二阶收敛验证、三条可靠性判据。分支 `claude/wizardly-mayer-2AkHA` 未推送 |
 | 有限体积法 CFD 求解器学习 | `session_015Jk9J73ix6BRyxs31T8ExB` | **改名后新组**里的会话。正在重走本仓库 `learning/README.md` 的砖块 1（两个盒子之间墨水怎么流），当前等你回答。分支 `claude/fvm-cfd-solver-learning-v9280l` 未推送 |
 
-## 归档 tag
+## 归档分支
 
-原 `claude/*` 分支已打 tag 后删除，完整历史可随时取回：
+原 `claude/*` 分支的完整历史已镜像到 `archive/*` 分支，可随时取回：
 
-| Tag | 原分支 | 取回方式 |
+| 归档分支 | 原分支 | 对应会话 |
 |---|---|---|
-| `archive/phase1-2-requirements` | `claude/modest-clarke-a70tkz` | `git checkout -b tmp archive/phase1-2-requirements` |
-| `archive/phase3plus-adr-line` | `claude/wonderful-ride-ds1ee5` | 同上 |
-| `archive/phase4-detailed-design` | `claude/festive-mccarthy-44aptr` | 同上 |
-| `archive/phase6-implementation` | `claude/blissful-noether-gdnfwa` | 同上 |
-| `archive/openfoam-minimal-case` | `claude/ecstatic-heisenberg-oA9a8` | 同上 |
+| `archive/phase1-2-requirements` | `claude/modest-clarke-a70tkz` | Phase 1 & 2 — 需求工程 & 需求分析 |
+| `archive/phase3plus-adr-line` | `claude/wonderful-ride-ds1ee5` | Phase 3+ — Architecture Design Recording |
+| `archive/phase4-detailed-design` | `claude/festive-mccarthy-44aptr` | Phase 4 — 详细设计 |
+| `archive/phase6-implementation` | `claude/blissful-noether-gdnfwa` | Phase 6 — implementation kickoff |
+| `archive/openfoam-minimal-case` | `claude/ecstatic-heisenberg-oA9a8` | OpenFOAM — 最小案例教学 |
+
+取回：`git checkout -b tmp origin/archive/phase6-implementation`
+
+原本计划用 tag 归档（tag 不可变、更适合归档语义），但云端会话的 git 凭据只授权推送分支引用，
+推 tag 与删除远程引用均返回 403。如需改成 tag，在本地克隆执行：
+
+```
+git fetch origin 'refs/heads/archive/*:refs/heads/archive/*'
+for b in phase1-2-requirements phase3plus-adr-line phase4-detailed-design phase6-implementation openfoam-minimal-case; do
+  git tag "archive/$b" "origin/archive/$b" && git push origin "refs/tags/archive/$b" && git push origin --delete "archive/$b"
+done
+```
+
+### 待清理：原 `claude/*` 分支
+
+同样因为凭据不允许删除远程引用，以下 5 个自动命名的分支仍留在远程，内容已全部收进
+`archive/*` 与两个语义分支，可安全删除：
+
+```
+git push origin --delete \
+  claude/modest-clarke-a70tkz claude/wonderful-ride-ds1ee5 claude/festive-mccarthy-44aptr \
+  claude/blissful-noether-gdnfwa claude/ecstatic-heisenberg-oA9a8
+```
+
+（或在 GitHub 网页 Branches 页面逐个删除。）
 
 ## 未决项
 
