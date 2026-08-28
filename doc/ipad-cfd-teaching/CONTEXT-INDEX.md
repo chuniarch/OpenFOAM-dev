@@ -57,7 +57,7 @@ ea8dc1d9  交接文档收口
 | Phase 3+ — Architecture Design Recording | `session_01HBuV1PbrZ636drTHLZVvaH` | `claude/wonderful-ride-ds1ee5` | ✅ | ③ 冻结 v0.3（12 份 ADR、8 用例走查），等选下一步 |
 | Phase 4 — 详细设计 | `session_01PPftrcwP89b5EFVwnCpCWi` | `claude/festive-mccarthy-44aptr` | ✅ | ④ 冻结 v1.0，问要不要先列 M0 起步命令清单 |
 | Phase 6 — implementation kickoff | `session_012Lx1PNwGP88e4HqZxHwwTm` | `claude/blissful-noether-gdnfwa` | ✅ | 问先跑通验证，还是先补 DimensionSet / Mesh 单测 |
-| Doc — 跨项目文档使用 | `session_01UswR7WBNeQx7KqgqYez294` | `claude/vibrant-meitner-r7lsht` | ❌ → 回填中 | 从 modest-clarke 导出 4 份交接文档，给了 3 种跨仓库用法 |
+| Doc — 跨项目文档使用 | `session_01UswR7WBNeQx7KqgqYez294` | `claude/vibrant-meitner-r7lsht` | ❌ → 已回填 `context/cross-project-doc-usage.md` | 从 modest-clarke 导出 4 份交接文档，给了 3 种跨仓库用法 |
 
 ### 学习线（OpenFOAM 系列）→ `openfoam-learning/main`
 
@@ -73,7 +73,7 @@ ea8dc1d9  交接文档收口
 | 会话 | Session ID | 说明 |
 |---|---|---|
 | Phase 0 — 架构解读 | `session_014cezmDEefazTL8T43SgC6T` | 已归档。对流-扩散分析、离散误差 vs 迭代误差、二阶收敛验证、三条可靠性判据。分支 `claude/wizardly-mayer-2AkHA` 未推送 |
-| 有限体积法 CFD 求解器学习 | `session_015Jk9J73ix6BRyxs31T8ExB` | **改名后新组**里的会话，现为**学习线的活动会话**。已通读 `openfoam-learning/main` 全部上下文并接手：代跑验收了砖块 10 的 `Convection2D.swift`，补上「数值扩散」一课，正进砖块 11A（`a_P` / `H(U)`）。产出一律直接写 `openfoam-learning/main`；自动分支 `claude/fvm-cfd-solver-learning-v9280l` 作废、从未推送 |
+| 有限体积法 CFD 求解器学习 | `session_015Jk9J73ix6BRyxs31T8ExB` | **改名后新组**里的会话。正在重走本仓库 `learning/README.md` 的砖块 1（两个盒子之间墨水怎么流），当前等你回答。分支 `claude/fvm-cfd-solver-learning-v9280l` 未推送 |
 
 ## 归档分支
 
