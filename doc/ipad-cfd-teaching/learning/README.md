@@ -15,6 +15,8 @@
 > - `GLOSSARY.md` —— 规范用语，所有材料以此为准
 > - `RESOURCES.md` —— 一手来源与社区
 > - `lessons/*.html` —— 按顺序学的课，每课一个 win，带交互练习
+>   - 第 4 课「一道墙有多好通」也已发布为可交互页面：https://claude.ai/artifact/9QFhZn1umBSL72876VzQDx
+>     （仓库里的 `lessons/0001-wall-conductance.html` 是同一份，样式取自 `assets/lesson.css`）
 > - `reference/*.html` —— 打印友好的速查卡
 > - `learning-records/*.md` —— 已确认掌握的东西，用来判断下一步教什么
 
