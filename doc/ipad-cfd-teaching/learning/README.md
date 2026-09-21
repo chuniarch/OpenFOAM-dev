@@ -5,6 +5,8 @@
 >
 > 配套文档：
 > - `diffusion-notes.md` —— 扩散专题完整归纳（砖块 1–9 的公式与推导）
+> - `formula-cheatsheet.md` —— 公式速查表（按重走进度累积）
+> - `bc-and-dimensions.md` —— 边界条件与维度的集中梳理（砖块 5 / 7 / 8A / 9 的横切面）
 > - `code/` —— 各砖的 Swift 代码
 
 ---
