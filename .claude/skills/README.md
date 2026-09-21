@@ -85,5 +85,27 @@ npx skills@latest add mattpocock/skills         # 把可编辑的文件写进项
 
 ## 分支说明
 
-本目录目前只在 `openfoam-learning/main` 分支上。若希望在 `master` 或其他分支的会话里也可用，
-需要把 `.claude/` 目录合并过去。
+本目录已同步到三个分支，内容逐字节相同（`.claude` 的 git tree 均为 `decfdfd5`）：
+
+| 分支 | 用途 |
+|---|---|
+| `openfoam-learning/main` | 学习线：CFD 学习阶梯、扩散笔记、OpenFOAM 源码解读 |
+| `ipad-cfd-teaching/main` | 工程线：需求 → 架构 → 详设 → 实现，含 FoamMini |
+| `master` | OpenFOAM 主线 fork |
+
+**更新时三个分支要一起改**，否则会漂移。做法（在任一分支改完 `.claude/` 后）：
+
+```bash
+CLAUDE_TREE=$(git rev-parse HEAD:.claude)
+for B in master ipad-cfd-teaching/main; do
+  export GIT_INDEX_FILE=$(mktemp); rm -f "$GIT_INDEX_FILE"
+  git read-tree "origin/$B"
+  git rm -r -q --cached --ignore-unmatch .claude
+  git read-tree --prefix=.claude/ "$CLAUDE_TREE"
+  C=$(git commit-tree $(git write-tree) -p "origin/$B" -m "同步 .claude/skills")
+  unset GIT_INDEX_FILE
+  git push origin "$C:refs/heads/$B"
+done
+```
+
+这样不必 checkout 整棵 OpenFOAM 源码树。
