@@ -1,0 +1,85 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>速查卡 · 墙的权重 w</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@600;700&family=JetBrains+Mono:wght@400;500&display=swap">
+<link rel="stylesheet" href="../assets/lesson.css">
+</head>
+<body>
+<main class="sheet">
+  <header class="masthead">
+    <p class="eyebrow">速查卡 01 · 打印友好</p>
+    <h1>墙的权重 w</h1>
+    <p class="meta"><span>出自第 4 课</span><span><a href="../lessons/0001-wall-conductance.html">回到课文</a></span></p>
+  </header>
+
+  <section>
+    <h2>公式</h2>
+    <pre class="formula"><code>w = D * A / d                          [m³/s]
+
+D  扩散系数（材料属性，给定）           [m²/s]
+A  这道墙的面积                        [m²]
+d  两盒【中心之间】的实际距离            [m]
+
+用法：  流进 P 的墨量 = w * (C_邻居 − C_P)      [kg/s]
+读法：  单位浓度差下，这道墙每秒能送过去多少墨</code></pre>
+  </section>
+
+  <section>
+    <h2>d 怎么取</h2>
+    <pre class="formula"><code>均匀网格      d = Δx
+两格不等宽    d = Δx_P/2 + Δx_N/2        ← 不是任一侧的格宽
+边界墙        d = Δx/2   ⇒  w = 2k       ← 砖块 5
+一般网格      d = 盒心到面心沿面法向的距离</code></pre>
+    <div class="callout warn">
+      <span class="label">最难查的 bug</span>
+      <p>不等宽网格上拿某一侧的格宽当 <code>d</code>：程序<strong>不报错、不发散</strong>，只是算得不对。
+      而且均匀网格上三种写法给出同一个数，测试用例里必须放一个<strong>不均匀网格</strong>才抓得住。</p>
+    </div>
+  </section>
+
+  <section>
+    <h2>量纲自检</h2>
+    <pre class="formula"><code>[w] = (m²/s) * (m²) / (m)   = m³/s          ✓
+[Q] = (m³/s) * (kg/m³)      = kg/s          ✓
+[J] = (m²/s) * (kg/m³) / m  = kg/(m²·s)     ✓</code></pre>
+  </section>
+
+  <section>
+    <h2>验收尺子</h2>
+    <div class="scroll">
+    <table>
+      <thead><tr><th>尺子</th><th>要求</th></tr></thead>
+      <tbody>
+        <tr><td>量纲</td><td><code>w</code> 必须是 <code>m³/s</code></td></tr>
+        <tr><td>极限</td><td><code>D→0</code> 或 <code>A→0</code> ⇒ <code>w→0</code>；<code>d→0</code> ⇒ <code>w→∞</code></td></tr>
+        <tr><td>一致性</td><td>均匀网格 + 均匀 <code>D</code> ⇒ 所有内部面的 <code>w</code> 完全相等</td></tr>
+        <tr><td>非均匀直线</td><td>1D 稳态无源：即使格子宽窄不一，解在<strong>物理坐标 x</strong> 上仍是直线</td></tr>
+      </tbody>
+    </table>
+    </div>
+  </section>
+
+  <section>
+    <h2>标度直觉</h2>
+    <pre class="formula"><code>扩散距离    L ≈ sqrt(2 * D * t)     ⇔     t ≈ L² / (2*D)
+
+墨在水里 D ≈ 1e-9 m²/s：
+    1 mm  →  约 8 分钟
+    1 cm  →  约 14 小时
+    10 cm →  约 58 天</code></pre>
+    <p>距离翻倍，时间要四倍。这就是现实里必须靠搅拌（对流）的原因。</p>
+  </section>
+
+  <footer>
+    <p><strong>对应 OpenFOAM：</strong><code>fvm::laplacian(D, C)</code> 组装的就是这些 <code>w</code>；
+    <code>deltaCoeffs = 1/d</code> 由 <code>surfaceInterpolation</code> 提供。</p>
+    <p><a href="../GLOSSARY.md">术语表</a> · <a href="../formula-cheatsheet.md">公式速查表</a> · <a href="../README.md">砖块总索引</a></p>
+  </footer>
+</main>
+</body>
+</html>

@@ -1,0 +1,270 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>一道墙有多好通</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@600;700&family=JetBrains+Mono:wght@400;500&display=swap">
+<link rel="stylesheet" href="../assets/lesson.css">
+</head>
+<body>
+<main class="sheet">
+
+  <header class="masthead">
+    <p class="eyebrow">第 4 课 · 砖块 4</p>
+    <h1>一道墙有多好通</h1>
+    <p class="lede">把一直当黑盒用的权重 <code>w</code> 拆开。学完你能算出任意一道墙的 <code>w</code>，包括两边格子不一样宽的情况。</p>
+    <p class="meta"><span>约 8 分钟</span><span>前置：砖块 1–3</span><span>一个概念，三个因子</span></p>
+  </header>
+
+  <section>
+    <h2>三十秒回顾</h2>
+    <p>砖块 1 到 3 里，每一道墙上都挂着一个 <code>w</code>：</p>
+    <pre class="formula"><code>流进 P 的墨量 = w * (C_邻居 − C_P)</code></pre>
+    <p>你已经用它算过题了（<code>w_L = 2*w_R</code> 那道，答案 8）。但 <code>w</code> 本身一直是个黑盒：只知道"它是个正数、越大越好通"。</p>
+    <p>这一课把黑盒打开。<strong>只有这一件事。</strong></p>
+  </section>
+
+  <section>
+    <h2>一 · <code>w</code> 到底是什么</h2>
+    <p>把上面那个式子倒过来解一下：</p>
+    <pre class="formula"><code>       每秒流过这道墙的墨量        Q
+w  =  ──────────────────────  =  ────
+          两侧的浓度差            ΔC</code></pre>
+    <p>念出来就是一句话：</p>
+    <div class="callout key">
+      <span class="label">定义</span>
+      <p><strong><code>w</code> = 在「单位浓度差」下，这道墙每秒能送过去多少墨。</strong>单位 <code>m³/s</code>。</p>
+    </div>
+    <p>所以 <code>w</code> 大 = 这道墙好通；<code>w</code> 小 = 难通。它衡量的是<em class="term">墙</em>的本事，跟两边浓度是多少无关。</p>
+  </section>
+
+  <section>
+    <h2>二 · 拆开它</h2>
+    <pre class="formula"><code>w = D * A / d</code></pre>
+    <div class="scroll">
+    <table>
+      <thead><tr><th>符号</th><th>它是什么</th><th>它变大时</th></tr></thead>
+      <tbody>
+        <tr><td><code>D</code></td><td>扩散系数 —— 墨在水里跑得有多快。给定的材料属性，<code>m²/s</code></td><td>更好通</td></tr>
+        <tr><td><code>A</code></td><td>这道墙的面积 —— 窗户开得有多大，<code>m²</code></td><td>更好通</td></tr>
+        <tr><td><code>d</code></td><td>两个盒子<strong>中心之间</strong>的距离，<code>m</code></td><td>更<strong>难</strong>通</td></tr>
+      </tbody>
+    </table>
+    </div>
+
+    <figure>
+      <svg viewBox="0 0 600 240" role="img" aria-label="两个宽度不同的盒子共用一道墙，d 是两个中心之间的距离，等于左盒半宽加右盒半宽">
+        <defs>
+          <marker id="ah" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto">
+            <path d="M0,1 L9,5 L0,9 z" fill="var(--accent)"></path>
+          </marker>
+          <marker id="ah2" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto">
+            <path d="M0,1 L9,5 L0,9 z" fill="var(--muted)"></path>
+          </marker>
+        </defs>
+
+        <text x="300" y="20" text-anchor="middle" font-size="13" fill="var(--accent)" font-weight="600">A ＝ 这道墙的面积</text>
+        <line x1="300" y1="26" x2="300" y2="44" stroke="var(--accent)" stroke-width="1" stroke-dasharray="3 3"></line>
+
+        <rect x="50" y="46" width="250" height="100" fill="var(--surface)" stroke="var(--ink)" stroke-width="1.5"></rect>
+        <rect x="300" y="46" width="50" height="100" fill="var(--surface)" stroke="var(--ink)" stroke-width="1.5"></rect>
+        <line x1="300" y1="46" x2="300" y2="146" stroke="var(--accent)" stroke-width="4"></line>
+
+        <circle cx="175" cy="96" r="4" fill="var(--ink)"></circle>
+        <circle cx="325" cy="96" r="4" fill="var(--ink)"></circle>
+        <text x="175" y="82" text-anchor="middle" font-size="14" fill="var(--ink)" font-weight="600">P</text>
+        <text x="325" y="82" text-anchor="middle" font-size="14" fill="var(--ink)" font-weight="600">N</text>
+        <text x="175" y="134" text-anchor="middle" font-size="12" fill="var(--muted)">Δx_P = 0.10 m</text>
+        <line x1="352" y1="96" x2="372" y2="96" stroke="var(--muted)" stroke-width="1"></line>
+        <text x="378" y="100" font-size="12" fill="var(--muted)">Δx_N = 0.02 m</text>
+
+        <line x1="175" y1="150" x2="175" y2="190" stroke="var(--rule)" stroke-width="1"></line>
+        <line x1="300" y1="150" x2="300" y2="215" stroke="var(--rule)" stroke-width="1"></line>
+        <line x1="325" y1="150" x2="325" y2="190" stroke="var(--rule)" stroke-width="1"></line>
+
+        <line x1="175" y1="182" x2="325" y2="182" stroke="var(--accent)" stroke-width="1.5" marker-start="url(#ah)" marker-end="url(#ah)"></line>
+        <text x="250" y="174" text-anchor="middle" font-size="13" fill="var(--accent)" font-weight="600">d ＝ 中心到中心 ＝ 0.06 m</text>
+
+        <line x1="175" y1="208" x2="300" y2="208" stroke="var(--muted)" stroke-width="1" marker-start="url(#ah2)" marker-end="url(#ah2)"></line>
+        <line x1="300" y1="208" x2="325" y2="208" stroke="var(--muted)" stroke-width="1" marker-start="url(#ah2)" marker-end="url(#ah2)"></line>
+        <text x="237" y="228" text-anchor="middle" font-size="12" fill="var(--muted)">Δx_P/2 = 0.05</text>
+        <text x="336" y="228" font-size="12" fill="var(--muted)">Δx_N/2 = 0.01</text>
+      </svg>
+      <figcaption><strong><code>d</code> 不是格子的宽度。</strong>它是两个中心之间的实际距离，等于左盒半宽加右盒半宽。两边一样宽时它恰好等于格子宽度，这就是为什么均匀网格上这个区别看不出来。</figcaption>
+    </figure>
+  </section>
+
+  <section>
+    <h2>三 · 为什么是「除以」距离</h2>
+    <p>这是本课唯一需要想一下的地方。看两种情形，它们的<strong>浓度差一模一样</strong>：</p>
+    <pre class="formula"><code>情形甲：两盒中心相距 0.01 m，浓度差 6 kg/m³
+情形乙：两盒中心相距 1.00 m，浓度差 6 kg/m³</code></pre>
+    <p>甲的"坡"比乙陡 100 倍。</p>
+    <p>回到砖块 1 的图像：墨分子只感觉得到<strong>脚下这一小段</strong>的落差，它看不到一米之外有多浓。同样的落差摊在一百倍长的路上，每一步的坡度就只有百分之一，输运也就慢一百倍。</p>
+    <div class="callout key">
+      <span class="label">记法</span>
+      <p><strong>浓度差是落差，除以距离才是坡度。</strong>真正驱动输运的是坡度。</p>
+    </div>
+    <p>把这个"÷ 距离"从括号里提出来，它就落在 <code>w</code> 身上 —— 这就是 <code>w</code> 里那个分母 <code>d</code> 的全部来历。</p>
+    <p>一个直接推论，第一次见会觉得反直觉：<strong>网格加密，<code>w</code> 变大。</strong><code>d</code> 减半，<code>w</code> 翻倍。格子越小，两个中心挨得越近，同样的浓度差意味着越陡的坡。没错，就该这样。</p>
+  </section>
+
+  <section>
+    <h2>四 · 动手算一遍</h2>
+    <p>一道墙，两侧是静水里的墨。已知：</p>
+    <pre class="formula"><code>D  = 1e-9  m²/s      （墨在水里）
+A  = 1e-4  m²        （1 平方厘米的窗口）
+d  = 0.02  m         （两个中心相距 2 厘米）
+C_左 = 10 kg/m³ ，C_右 = 4 kg/m³</code></pre>
+    <ol class="steps">
+      <li>
+        <strong>算这道墙的 w</strong>
+        <pre class="formula"><code>w = D * A / d
+  = 1e-9 * 1e-4 / 0.02
+  = 1e-13 / 0.02
+  = 5e-12   m³/s</code></pre>
+      </li>
+      <li>
+        <strong>算两侧的浓度差</strong>
+        <pre class="formula"><code>ΔC = C_左 − C_右 = 10 − 4 = 6   kg/m³</code></pre>
+      </li>
+      <li>
+        <strong>算流量</strong>
+        <pre class="formula"><code>Q = w * ΔC = 5e-12 * 6 = 3e-11   kg/s</code></pre>
+        <p>每秒 3e-11 千克。要送过去 1 毫克墨，得等大约 9 小时。扩散就是这么慢 —— 这也是现实里必须靠搅拌的原因。</p>
+      </li>
+    </ol>
+    <div class="callout">
+      <span class="label">量纲自检</span>
+      <pre class="formula"><code>[w] = (m²/s) * (m²) / (m) = m³/s        ✓
+[Q] = (m³/s) * (kg/m³)    = kg/s        ✓</code></pre>
+      <p>写完任何一条式子，先对一遍单位。对不上就一定错了。</p>
+    </div>
+  </section>
+
+  <section>
+    <h2>试一试</h2>
+    <p>改数字，看 <code>w</code> 怎么变。先试试把 <code>d</code> 减半。</p>
+    <div class="calc">
+      <div class="fields">
+        <label for="inD">D（m²/s）<input id="inD" type="text" inputmode="decimal" value="1e-9"></label>
+        <label for="inA">A（m²）<input id="inA" type="text" inputmode="decimal" value="1e-4"></label>
+        <label for="ind">d（m）<input id="ind" type="text" inputmode="decimal" value="0.02"></label>
+      </div>
+      <p>w = D * A / d = <output id="outW" for="inD inA ind">5.000e-12 m³/s</output></p>
+      <p class="fb" id="outNote">浓度差为 6 kg/m³ 时，这道墙每秒过 3.000e-11 kg 墨。</p>
+    </div>
+  </section>
+
+  <section>
+    <h2>五 · 验收尺子</h2>
+    <p>写代码前先定好怎么判断对错。这一砖有三把：</p>
+    <ol>
+      <li><strong>量纲</strong> —— <code>w</code> 必须是 <code>m³/s</code>。</li>
+      <li><strong>极限</strong> —— <code>D → 0</code> 或 <code>A → 0</code> 时 <code>w → 0</code>（不通）；<code>d → 0</code> 时 <code>w → ∞</code>（贴在一起，无限好通）。代进去不对就是公式写错了。</li>
+      <li><strong>一致性</strong> —— 均匀网格 + 均匀 <code>D</code> 时，所有内部面的 <code>w</code> 必须<strong>完全相等</strong>。把它们打印出来扫一眼，这一条几分钟就能查完。</li>
+    </ol>
+  </section>
+
+  <section>
+    <h2>练习</h2>
+    <p>每题只有一次机会，凭理解选，别回头翻。答错了也会告诉你为什么。</p>
+    <div class="quiz" id="quiz">
+
+      <div class="q" data-answer="0">
+        <p class="stem">1. 把两个盒子的中心距离 <code>d</code> 缩短成原来的一半，<code>D</code> 和 <code>A</code> 都不变。这道墙的 <code>w</code> 会怎样？</p>
+        <div class="opts">
+          <button class="opt" type="button" aria-pressed="false">变成两倍</button>
+          <button class="opt" type="button" aria-pressed="false">变成一半</button>
+          <button class="opt" type="button" aria-pressed="false">保持不变</button>
+          <button class="opt" type="button" aria-pressed="false">变成四倍</button>
+        </div>
+        <p class="fb" hidden data-fb="<code>d</code> 在分母上，减半就让 <code>w</code> 翻倍。物理上：两个中心挨得更近，同样的浓度差意味着更陡的坡，所以更好通。"></p>
+      </div>
+
+      <div class="q" data-answer="2">
+        <p class="stem">2. 左盒宽 <code>0.10 m</code>，右盒宽 <code>0.02 m</code>，两盒共用一道墙，<code>D</code> 和 <code>A</code> 处处相同。这道墙的 <code>d</code> 是多少？</p>
+        <div class="opts">
+          <button class="opt" type="button" aria-pressed="false">0.10 m</button>
+          <button class="opt" type="button" aria-pressed="false">0.12 m</button>
+          <button class="opt" type="button" aria-pressed="false">0.06 m</button>
+          <button class="opt" type="button" aria-pressed="false">0.02 m</button>
+        </div>
+        <p class="fb" hidden data-fb="<code>d = Δx_P/2 + Δx_N/2 = 0.05 + 0.01 = 0.06 m</code>。左盒中心到墙 0.05，墙到右盒中心 0.01。不是任何一个格子的宽度，也不是两者之和。"></p>
+      </div>
+
+      <div class="q" data-answer="1">
+        <p class="stem">3. 上一题里，如果有人图省事拿左盒的格宽 <code>0.10 m</code> 当 <code>d</code>，算出来的 <code>w</code> 会偏大还是偏小？</p>
+        <div class="opts">
+          <button class="opt" type="button" aria-pressed="false">偏大</button>
+          <button class="opt" type="button" aria-pressed="false">偏小</button>
+          <button class="opt" type="button" aria-pressed="false">不变</button>
+          <button class="opt" type="button" aria-pressed="false">不定</button>
+        </div>
+        <p class="fb" hidden data-fb="分母被写大了（0.10 &gt; 0.06），所以 <code>w</code> 偏小 —— 大约只有真值的 <code>0.06/0.10 = 60%</code>。后果是低估了这道墙的连接强度，解会偏离正确答案，而且程序不报错、不发散，只是<strong>算得不对</strong>。这是最难查的一类 bug。"></p>
+      </div>
+
+    </div>
+  </section>
+
+  <footer>
+    <p><strong>下一步 · 砖块 5：墙不是盒子中心。</strong>边界上没有"对面那个盒子"，从中心到边界只有半格。把这一课的 <code>d</code> 换成 <code>Δx/2</code>，边界墙的 <code>w</code> 就是内部墙的两倍 —— 那条 <code>2k</code> 就是这么来的。</p>
+    <p><strong>主要参考（免费、原始出处）：</strong><a href="https://spiral.imperial.ac.uk/handle/10044/1/8335">Hrvoje Jasak (1996), <em>Error Analysis and Estimation for the Finite Volume Method with Applications to Fluid Flows</em></a> —— OpenFOAM 的奠基文献，作者就是 OpenFOAM 的主要作者之一。读第 3 章（离散化）里讲扩散项的部分，你会看到这一课的 <code>D·A/d</code> 以完整的矢量形式出现。</p>
+    <p><strong>同工作区：</strong><a href="../formula-cheatsheet.md">公式速查表</a> · <a href="../GLOSSARY.md">术语表</a> · <a href="../README.md">砖块总索引</a></p>
+    <p><strong>卡住了就回到对话里问我。</strong>我是你的老师，这页上任何一句话讲不清楚都可以让我重讲 —— 打 <code>/wait-what</code> 会强制我换个角度再来一遍。</p>
+  </footer>
+
+</main>
+
+<script>
+(function () {
+  var fmt = function (x) {
+    if (!isFinite(x)) return "—";
+    return x.toExponential(3);
+  };
+  var D = document.getElementById("inD"),
+      A = document.getElementById("inA"),
+      d = document.getElementById("ind"),
+      outW = document.getElementById("outW"),
+      note = document.getElementById("outNote");
+  function recalc() {
+    var vD = parseFloat(D.value), vA = parseFloat(A.value), vd = parseFloat(d.value);
+    if (!isFinite(vD) || !isFinite(vA) || !isFinite(vd) || vd === 0) {
+      outW.textContent = "请填三个数字，d 不能为 0";
+      note.textContent = "";
+      return;
+    }
+    var w = vD * vA / vd;
+    outW.textContent = fmt(w) + " m³/s";
+    note.textContent = "浓度差为 6 kg/m³ 时，这道墙每秒过 " + fmt(w * 6) + " kg 墨。";
+  }
+  [D, A, d].forEach(function (el) { el.addEventListener("input", recalc); });
+  recalc();
+
+  document.querySelectorAll("#quiz .q").forEach(function (q) {
+    var answer = parseInt(q.getAttribute("data-answer"), 10);
+    var opts = Array.prototype.slice.call(q.querySelectorAll(".opt"));
+    var fb = q.querySelector(".fb");
+    opts.forEach(function (btn, i) {
+      btn.addEventListener("click", function () {
+        if (btn.disabled) return;
+        var correct = (i === answer);
+        btn.setAttribute("aria-pressed", "true");
+        btn.classList.add(correct ? "right" : "wrong");
+        opts.forEach(function (b, j) {
+          b.disabled = true;
+          if (j === answer) b.classList.add("right");
+        });
+        fb.classList.add(correct ? "right" : "wrong");
+        fb.innerHTML = (correct ? "<strong>对了。</strong> " : "<strong>不对。</strong> ") + fb.getAttribute("data-fb");
+        fb.hidden = false;
+      });
+    });
+  });
+})();
+</script>
+</body>
+</html>

@@ -6,8 +6,17 @@
 > 配套文档：
 > - `diffusion-notes.md` —— 扩散专题完整归纳（砖块 1–9 的公式与推导）
 > - `formula-cheatsheet.md` —— 公式速查表（按重走进度累积）
-> - `bc-and-dimensions.md` —— 边界条件与维度的集中梳理（砖块 5 / 7 / 8A / 9 的横切面）
+> - `bc-and-dimensions.md` —— 边界条件与维度的横切参考手册（**非教程**）
 > - `code/` —— 各砖的 Swift 代码
+>
+> 教学工作区（`/teach` skill 的格式，2026-09-21 起）：
+> - `MISSION.md` —— 为什么学这个；所有教学决策都要回溯到它
+> - `NOTES.md` —— 教学纪律与学习者偏好（**硬约束**）
+> - `GLOSSARY.md` —— 规范用语，所有材料以此为准
+> - `RESOURCES.md` —— 一手来源与社区
+> - `lessons/*.html` —— 按顺序学的课，每课一个 win，带交互练习
+> - `reference/*.html` —— 打印友好的速查卡
+> - `learning-records/*.md` —— 已确认掌握的东西，用来判断下一步教什么
 
 ---
 
