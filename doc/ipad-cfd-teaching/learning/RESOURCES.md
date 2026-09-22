@@ -21,6 +21,32 @@
 - [OpenFOAM 官方资源页（openfoam.org）](https://openfoam.org/resources/)
   用于：版本、源码、教程算例的权威入口。
 
+## 交叉线：Stable Fluids / FLIP（实时图形路线）
+
+学习者同时在学另一门课，走的是 Stam 的 Stable Fluids → 3D FLIP。**两条线在讲同一条物理定律，
+但数值目标不同**（我们要守恒与精度，那边要实时与绝不爆炸）。概念对应关系与逐条判决见
+`crosswalk-stable-fluids.md`；**不看那份对照表就直接借用，会拿错验收尺子。**
+
+下列条目由那门课引用。⚠ 本会话的网络策略不允许访问这些域名（代理对
+`dgp.toronto.edu`、`cs.ubc.ca` 等返回 403），**我未能逐一核实**，原样转录。
+
+- Jos Stam, *Real-Time Fluid Dynamics for Games*（GDC 2003，8 页）
+  `https://www.dgp.toronto.edu/public_user/stam/reality/Research/pdf/GDC03.pdf`
+  把整套方法压成不到一百行 C。用于：看「一步拆成几个算子」的最小实现。
+
+- Jos Stam, *Stable Fluids*（SIGGRAPH 1999，原始论文）
+  `https://www.dgp.toronto.edu/people/stam/reality/Research/pdf/ns.pdf`
+  半拉格朗日 + 投影法的出处。用于：理解"无条件稳定"是怎么换来的，以及换掉了什么。
+
+- Robert Bridson, *Fluid Simulation for Computer Graphics*（课程讲义 PDF）
+  `https://www.cs.ubc.ca/~rbridson/fluidsimulation/fluids_notes.pdf`
+  **对我们最有价值的一本**：第 1–3 章把 NS 每一项的物理意义讲透，这部分属于「物理层」，可直接借。
+  后面的格式章节属于图形路线，读时带上守恒的警告。
+
+- Matthias Müller, Ten Minute Physics #17, *Eulerian Fluid Simulator in 200 lines*
+  `https://matthias-research.github.io/pages/tenMinutePhysics/index.html`
+  用于：想看动的演示时。同样是图形路线。
+
 ## Wisdom（社区）
 
 - [CFD Online — OpenFOAM 论坛](https://www.cfd-online.com/Forums/openfoam/)

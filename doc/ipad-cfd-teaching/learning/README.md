@@ -7,6 +7,7 @@
 > - `diffusion-notes.md` —— 扩散专题完整归纳（砖块 1–9 的公式与推导）
 > - `formula-cheatsheet.md` —— 公式速查表（按重走进度累积）
 > - `bc-and-dimensions.md` —— 边界条件与维度的横切参考手册（**非教程**）
+> - `crosswalk-stable-fluids.md` —— 与另一门课（Stable Fluids / FLIP）的概念对照与逐条判决
 > - `code/` —— 各砖的 Swift 代码
 >
 > 教学工作区（`/teach` skill 的格式，2026-09-21 起）：
