@@ -119,7 +119,7 @@
 
   <section>
     <h2>四 · 写出两端盒子的方程</h2>
-    <p>一排 5 个盒子，均匀网格，稳态。左墙钉死 <code>C = 10</code>，右墙钉死 <code>C = 0</code>。内部墙权重 <code>k</code>，边界墙 <code>2k</code>。</p>
+    <p><strong>情形甲</strong>：一排 5 个盒子，均匀网格，稳态。左墙钉死 <code>C = 10</code>，右墙<strong>钉死 <code>C = 0</code></strong>。内部墙权重 <code>k</code>，边界墙 <code>2k</code>。</p>
     <ol class="steps">
       <li>
         <strong>中间三个盒子：和砖块 3 一模一样</strong>
@@ -173,13 +173,31 @@ C_5 = 3 / 3              = 1        ✓</code></pre>
     <p>两端都钉死成 5 ⇒ 五个盒子必须<strong>全是 5</strong>。代码写好先跑这个，分母漏加、2k 写错，一跑就露馅。</p>
 
     <h3>尺子三：一端钉死、一端不透水 ⇒ 全场等于钉死的那个值</h3>
-    <p>左墙钉死 10，右墙不透水，稳态 ⇒ 五个盒子<strong>全是 10</strong>。推理只用两条你已经会的东西：</p>
+    <p><strong>情形乙</strong>：左墙钉死 10，右墙<strong>不透水</strong>，稳态 ⇒ 五个盒子<strong>全是 10</strong>。</p>
+    <p>⚠ 这和第四节的情形甲<strong>不是同一道题</strong>：左墙一样，只有右墙不同。推理只用两条你已经会的东西：</p>
     <pre class="formula"><code>砖块 2：一维稳态，每个盒子进 = 出 ⇒ 每道墙过的墨一样多
 不透水的那道墙过的墨是 0
 ⇒ 每道墙过的墨都是 0
 ⇒ 任何两个相邻盒子之间都没有浓度差
 ⇒ 全场一样，等于左墙钉死的 10</code></pre>
     <p>如果你的程序在这个设置下算出了任何不是 10 的数，不透水的墙就写错了 —— 多半是写成了"钉死成 0"。</p>
+    <div class="callout key">
+      <span class="label">并排看：只差右墙这一处</span>
+      <div class="scroll">
+      <table>
+        <thead><tr><th></th><th>情形甲（第四节）</th><th>情形乙（尺子三）</th></tr></thead>
+        <tbody>
+          <tr><td>左墙</td><td>钉死 10</td><td>钉死 10</td></tr>
+          <tr><td>右墙</td><td><strong>钉死 0</strong>：墙外一大缸清水，不停把墨吸走</td><td><strong>不透水</strong>：一块玻璃</td></tr>
+          <tr><td>5 号盒子的方程</td><td><code>C_5 = C_4 / 3</code></td><td><code>C_5 = C_4</code></td></tr>
+          <tr><td>墨在干什么</td><td>从左往右穿堂而过，<strong>一直在流</strong></td><td>装满了，<strong>不动了</strong></td></tr>
+          <tr><td>每道墙过的墨</td><td>都一样，且<strong>不为 0</strong></td><td>都一样，且<strong>等于 0</strong></td></tr>
+          <tr><td>答案</td><td><code>9, 7, 5, 3, 1</code>（一条斜线）</td><td><code>10, 10, 10, 10, 10</code>（一条平线）</td></tr>
+        </tbody>
+      </table>
+      </div>
+      <p>五条方程里<strong>只有 5 号盒子那一条不同</strong>，答案就全变了。同一条规则（一维稳态每道墙过的墨一样多），右墙一换，结论从"斜线"变成"平线"。</p>
+    </div>
   </section>
 
   <section>
