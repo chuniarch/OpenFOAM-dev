@@ -1,0 +1,338 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>一遍遍逼近</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@600;700&family=JetBrains+Mono:wght@400;500&display=swap">
+<link rel="stylesheet" href="../assets/lesson.css">
+</head>
+<body>
+<main class="sheet">
+
+  <header class="masthead">
+    <p class="eyebrow">插页 A · 砖块 5 之后</p>
+    <h1>一遍遍逼近</h1>
+    <p class="lede">砖块 3 说五条方程咬在一起、必须一起解，却一直没说怎么解。答案出奇地简单：先随便猜，再把砖块 2 的式子一遍遍套上去。学完你能手算几遍，并且知道什么时候该停。</p>
+    <p class="meta"><span>约 8 分钟</span><span>前置：砖块 2、3、5</span><span>没有新公式</span></p>
+  </header>
+
+  <section>
+    <h2>三十秒回顾</h2>
+    <p>砖块 5 的情形甲：一排 5 个盒子，左墙钉死 10，右墙钉死 0。五条方程是：</p>
+    <pre class="formula"><code>C_1 = (20 + C_2) / 3        ← 左墙是边界（2k）
+C_2 = (C_1 + C_3) / 2
+C_3 = (C_2 + C_4) / 2
+C_4 = (C_3 + C_5) / 2
+C_5 = C_4 / 3               ← 右墙是边界（2k）</code></pre>
+    <p>答案我们已经知道：<code>9, 7, 5, 3, 1</code>（钉在两面墙上的直线）。这一课正好拿它当标准答案，看看新方法能不能自己找到它。</p>
+    <p>砖块 3 卡住的地方：算 <code>C_1</code> 要先知道 <code>C_2</code>，算 <code>C_2</code> 又要先知道 <code>C_1</code>。<strong>每个盒子都在等别人。</strong></p>
+  </section>
+
+  <section>
+    <h2>一 · 打破死结：先猜</h2>
+    <p>死结的破法是：<strong>不等了。</strong></p>
+    <ol>
+      <li>先给每个盒子随便填一个数 —— 比如全填 0。</li>
+      <li>假装邻居现在的值是对的，按上面的式子算自己。</li>
+      <li>五个盒子都算一遍，叫做<strong>扫一遍</strong>。</li>
+      <li>再扫一遍，再扫一遍……</li>
+    </ol>
+    <p>第一遍算出来当然不对 —— 邻居本来就是猜的。但它会<strong>比猜的更接近</strong>。下一遍又更近一点。</p>
+    <p>注意：<strong>这里没有任何新公式。</strong>每一步用的都是砖块 2 的"等于邻居的加权平均"，只是反复地用。</p>
+  </section>
+
+  <section>
+    <h2>二 · 手算第一遍</h2>
+    <p>从全 0 开始，从左往右，一个一个算：</p>
+    <ol class="steps">
+      <li>
+        <strong>1 号</strong>
+        <pre class="formula"><code>C_1 = (20 + C_2) / 3 = (20 + 0) / 3 = 6.667</code></pre>
+      </li>
+      <li>
+        <strong>2 号 —— 注意这里用的 C_1</strong>
+        <pre class="formula"><code>C_2 = (C_1 + C_3) / 2 = (6.667 + 0) / 2 = 3.333</code></pre>
+        <p>用的是<strong>刚刚算出来的</strong> <code>C_1 = 6.667</code>，不是一开始猜的 0。算出一个新值就立刻写回去，后面的盒子马上用上。</p>
+      </li>
+      <li>
+        <strong>3、4、5 号，同样的做法</strong>
+        <pre class="formula"><code>C_3 = (3.333 + 0) / 2 = 1.667
+C_4 = (1.667 + 0) / 2 = 0.833
+C_5 = 0.833 / 3       = 0.278</code></pre>
+      </li>
+    </ol>
+    <p>这种"算完立刻写回、马上给下一个用"的做法，叫<strong>高斯-塞德尔</strong>（Gauss-Seidel，两个人名，不用记）。</p>
+    <p>第二遍照样从 1 号开始，只是现在邻居都有值了。比如 1 号：<code>(20 + 3.333) / 3 = 7.778</code> —— 用的是第一遍算出的 <code>C_2</code>。继续扫下去：</p>
+    <div class="scroll">
+    <table>
+      <thead><tr><th>第几遍</th><th>C_1</th><th>C_2</th><th>C_3</th><th>C_4</th><th>C_5</th><th>这一遍最大改动</th></tr></thead>
+      <tbody>
+        <tr><td>1</td><td>6.667</td><td>3.333</td><td>1.667</td><td>0.833</td><td>0.278</td><td>6.667</td></tr>
+        <tr><td>2</td><td>7.778</td><td>4.722</td><td>2.778</td><td>1.528</td><td>0.509</td><td>1.389</td></tr>
+        <tr><td>3</td><td>8.241</td><td>5.509</td><td>3.519</td><td>2.014</td><td>0.671</td><td>0.787</td></tr>
+        <tr><td>4</td><td>8.503</td><td>6.011</td><td>4.012</td><td>2.342</td><td>0.781</td><td>0.502</td></tr>
+        <tr><td>10</td><td>8.957</td><td>6.913</td><td>4.913</td><td>2.942</td><td>0.981</td><td>0.043</td></tr>
+        <tr><td>20</td><td>8.999</td><td>6.998</td><td>4.998</td><td>2.999</td><td>1.000</td><td>0.001</td></tr>
+        <tr><td>37</td><td>9.000</td><td>7.000</td><td>5.000</td><td>3.000</td><td>1.000</td><td>0.00000076</td></tr>
+      </tbody>
+    </table>
+    </div>
+    <p>五个数一路爬向 <code>9, 7, 5, 3, 1</code>。它自己找到了答案。</p>
+  </section>
+
+  <section>
+    <h2>三 · 什么时候停</h2>
+    <p>真实问题里<strong>我们不知道答案</strong> —— 知道的话就不用算了。所以没法直接量"离答案还有多远"。</p>
+    <p>但有一样东西量得出来：<strong>这一遍里，改动最大的那个盒子改了多少</strong>。上表最后一列就是它。</p>
+    <div class="callout key">
+      <span class="label">停止规则</span>
+      <p>事先定一个很小的数，叫<strong>容差</strong>（比如 <code>1e-6</code>，即百万分之一）。某一遍的最大改动小于容差，就停。</p>
+    </div>
+    <p>情形甲：第 37 遍的最大改动是 <code>0.00000076</code>，小于 <code>0.000001</code>，停。此时五个数就是 <code>9.000, 7.000, 5.000, 3.000, 1.000</code>。</p>
+    <p>看最后一列还能发现一件事：<strong>头几遍改得很猛，后面越改越少。</strong>第 1 遍改了 6.667，第 20 遍只改 0.001。这为什么会这样、能不能加快，是后面插页 B 的内容；现在只需要注意到它。</p>
+  </section>
+
+  <section>
+    <h2>试一试</h2>
+    <p>自己点。先「再扫一遍」点几下，看柱子怎么爬向橙色直线；再换成「从全 100 开始」看会怎样。</p>
+    <div class="viz" id="sweepViz">
+      <div class="controls">
+        <button class="ctl" type="button" id="btnOne">再扫一遍</button>
+        <button class="ctl" type="button" id="btnTen">连扫十遍</button>
+        <button class="ctl" type="button" id="btnAll">扫到停为止</button>
+        <span class="group-label">从头开始：</span>
+        <button class="ctl" type="button" id="btnStart0" aria-pressed="true">全 0</button>
+        <button class="ctl" type="button" id="btnStart100" aria-pressed="false">全 100</button>
+      </div>
+      <div class="legend">
+        <span><i class="key-bar"></i>当前值</span>
+        <span><i class="key-line"></i>答案：钉在两面墙上的直线</span>
+      </div>
+      <p class="readout" id="readout" aria-live="polite"></p>
+      <svg id="sweepSvg" viewBox="0 0 560 250" role="img" aria-label="五个盒子当前浓度的柱状图，与正确答案的直线对照"></svg>
+      <div class="tip" id="sweepTip" hidden></div>
+      <div class="scroll">
+      <table>
+        <thead><tr><th></th><th>1 号</th><th>2 号</th><th>3 号</th><th>4 号</th><th>5 号</th></tr></thead>
+        <tbody>
+          <tr><td>当前值</td><td id="v0"></td><td id="v1"></td><td id="v2"></td><td id="v3"></td><td id="v4"></td></tr>
+          <tr><td>答案</td><td>9</td><td>7</td><td>5</td><td>3</td><td>1</td></tr>
+        </tbody>
+      </table>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <h2>四 · 验收尺子</h2>
+    <h3>尺子一：必须停在已知答案上</h3>
+    <p>情形甲必须收敛到 <code>9, 7, 5, 3, 1</code>。这是砖块 5 的尺子一，现在拿来检查解法。</p>
+    <h3>尺子二：初值无关</h3>
+    <p>从全 0 出发要扫 37 遍，从全 100 出发要扫 45 遍，但<strong>最后停在同一组数上</strong>。两端墙钉死了值，方程组的解就只有一组；初值只影响要扫几遍。如果两个初值停在不同的地方，程序有 bug。</p>
+    <h3>尺子三：改动总体越来越小</h3>
+    <p>这个问题用这种方法<strong>一定会收敛</strong>。如果你的程序越扫改动越大，或者冒出 <code>NaN</code>（"不是一个数"，除以零之类会产生它），一定是写错了 —— 最常见的是把新值写进了错的盒子。</p>
+  </section>
+
+  <section>
+    <h2>五 · cavity 里真的在跑这个</h2>
+    <p>本仓库 cavity 算例的 <code>system/fvSolution</code> 里，速度 <code>U</code> 的求解器设置是：</p>
+    <pre class="formula"><code>U
+{
+    solver          smoothSolver;
+    smoother        symGaussSeidel;      ← 就是这一课的高斯-塞德尔
+    tolerance       1e-05;               ← 就是这一课的容差
+}</code></pre>
+    <p>它真正执行的代码在 <code>src/OpenFOAM/matrices/lduMatrix/smoothers/symGaussSeidel/symGaussSeidelSmoother.C</code>。核心循环去掉细节后是这样（C++，不用会写，认结构就行）：</p>
+    <pre class="formula"><code>for (celli = 0; celli &lt; nCells; celli++)            // 从第一个盒子到最后一个，逐个来
+{
+    psii = bPrimePtr[celli];                          // 分子：已知部分（含左边邻居的新值）
+    psii -= upperPtr[facei]*psiPtr[uPtr[facei]];      // 分子：加上右边邻居的 w × C（还没轮到，用旧值）
+    psii /= diagPtr[celli];                           // 除以分母 Σw
+    bPrimePtr[uPtr[facei]] -= lowerPtr[facei]*psii;   // 把刚算出的新值，马上交给右边邻居
+    psiPtr[celli] = psii;                             // 就地写回
+}
+// 然后从最后一个盒子往回再扫一遍 —— sym（对称）就是来回各一遍</code></pre>
+    <p>第二行的"减号"其实是加：矩阵里邻居的系数存的是 <code>−w</code>（回忆砖块 3 的矩阵：对角线 +2，邻居 −1），减去 <code>−w × C</code> 就是加上 <code>w × C</code>。</p>
+    <p>对照你刚才的手算：<strong>分子除以分母、算完立刻写回、右边的盒子马上用上新值</strong>——一模一样。OpenFOAM 判停时量的是"残差"（把当前值代回方程还差多少），不是"最大改动"，但思路相同：量一个量得出来的东西，小于容差就停。</p>
+  </section>
+
+  <section>
+    <h2>练习</h2>
+    <p>每题只有一次机会，凭理解选，别回头翻。</p>
+    <div class="quiz" id="quiz">
+
+      <div class="q" data-answer="0">
+        <p class="stem">1. 迭代法怎么打破"每个盒子都在等邻居"的死结？</p>
+        <div class="opts">
+          <button class="opt" type="button" aria-pressed="false">先猜全部的值</button>
+          <button class="opt" type="button" aria-pressed="false">先解出一号盒</button>
+          <button class="opt" type="button" aria-pressed="false">先写成大矩阵</button>
+          <button class="opt" type="button" aria-pressed="false">先算出总墨量</button>
+        </div>
+        <p class="fb" hidden data-fb="不等了 —— 先给所有盒子填一个猜的值，再用砖块 2 的式子一遍遍修正。「先解出一号盒」做不到：一号盒也在等二号盒。"></p>
+      </div>
+
+      <div class="q" data-answer="0">
+        <p class="stem">2. 真实问题里不知道答案，那什么时候停？</p>
+        <div class="opts">
+          <button class="opt" type="button" aria-pressed="false">改动够小</button>
+          <button class="opt" type="button" aria-pressed="false">扫满百遍</button>
+          <button class="opt" type="button" aria-pressed="false">各值相等</button>
+          <button class="opt" type="button" aria-pressed="false">误差为零</button>
+        </div>
+        <p class="fb" hidden data-fb="离答案多远量不出来（不知道答案），但这一遍改了多少量得出来。最大改动小于容差就停。「误差为零」要扫无穷多遍，而且计算机做乘除本身就有极小的舍入误差，永远到不了零。"></p>
+      </div>
+
+      <div class="q" data-answer="0">
+        <p class="stem">3. 两端墙都钉死。从全 0 出发和从全 100 出发，最后停在哪里？</p>
+        <div class="opts">
+          <button class="opt" type="button" aria-pressed="false">同一组数</button>
+          <button class="opt" type="button" aria-pressed="false">不同的数</button>
+          <button class="opt" type="button" aria-pressed="false">看扫几遍</button>
+          <button class="opt" type="button" aria-pressed="false">看扫顺序</button>
+        </div>
+        <p class="fb" hidden data-fb="两端墙钉死了值，方程组只有一组解，初值只影响要扫几遍（37 遍对 45 遍）。两个初值停在不同地方 = 程序有 bug。这就是尺子二。"></p>
+      </div>
+
+    </div>
+  </section>
+
+  <footer>
+    <p><strong>下一步 · 砖块 6：写你的第一个程序。</strong>把这一课的手算交给计算机：一排盒子、两种墙、高斯-塞德尔扫到停。你写，我点评。</p>
+    <p>插页 B（为什么越往后改得越慢）和插页 C（更快的解法）不影响写程序，放到砖块 6 之后 —— 等你亲眼看到程序要扫几十上百遍，那两块才有意思。</p>
+    <p><strong>主要参考：</strong>上面那个 <code>symGaussSeidelSmoother.C</code> 本身 —— 它就是 cavity 在跑的代码，比任何教科书都一手。现在不用读懂 C++，但砖块 6 写完回头再看，你会发现自己写的和它是同一个结构。</p>
+    <p><strong>卡住了就回到对话里问我。</strong>打 <code>/wait-what</code> 会让我换个角度重讲。</p>
+  </footer>
+
+</main>
+
+<script>
+(function () {
+  var ANSWER = [9, 7, 5, 3, 1];
+  var TOL = 1e-6;
+  var NS = "http://www.w3.org/2000/svg";
+  var svg = document.getElementById("sweepSvg");
+  var tip = document.getElementById("sweepTip");
+  var box = document.getElementById("sweepViz");
+  var readout = document.getElementById("readout");
+  var st = { c: [0, 0, 0, 0, 0], n: 0, last: null, start: 0, done: false };
+
+  var X0 = 52, X1 = 540, YT = 16, YB = 206, BAND = (X1 - X0) / 5;
+  function yMax() { return st.start === 0 ? 12 : 100; }
+  function ticks() { return st.start === 0 ? [0, 5, 10] : [0, 25, 50, 75, 100]; }
+  function y(v) { var m = yMax(); v = Math.max(0, Math.min(m, v)); return YB - v / m * (YB - YT); }
+  function cx(i) { return X0 + BAND * (i + 0.5); }
+  function el(name, attrs, text) {
+    var e = document.createElementNS(NS, name);
+    for (var k in attrs) e.setAttribute(k, attrs[k]);
+    if (text != null) e.textContent = text;
+    return e;
+  }
+  function fmt(v) { return (Math.abs(v) < 1e-3 && v !== 0) ? v.toExponential(1) : v.toFixed(3); }
+
+  function sweep() {
+    var c = st.c, old = c.slice();
+    c[0] = (20 + c[1]) / 3;
+    c[1] = (c[0] + c[2]) / 2;
+    c[2] = (c[1] + c[3]) / 2;
+    c[3] = (c[2] + c[4]) / 2;
+    c[4] = c[3] / 3;
+    var m = 0;
+    for (var i = 0; i < 5; i++) m = Math.max(m, Math.abs(c[i] - old[i]));
+    st.n++; st.last = m;
+    if (m < TOL) st.done = true;
+  }
+  function run(k) { for (var i = 0; i < k && !st.done; i++) sweep(); render(); }
+  function restart(v) {
+    st = { c: [v, v, v, v, v], n: 0, last: null, start: v, done: false };
+    document.getElementById("btnStart0").setAttribute("aria-pressed", v === 0 ? "true" : "false");
+    document.getElementById("btnStart100").setAttribute("aria-pressed", v === 100 ? "true" : "false");
+    render();
+  }
+  function barPath(x, top, w) {
+    var h = YB - top, r = Math.min(4, h, w / 2);
+    if (h <= 0) return "";
+    return "M" + x + "," + YB + " V" + (top + r) + " Q" + x + "," + top + " " + (x + r) + "," + top +
+           " H" + (x + w - r) + " Q" + (x + w) + "," + top + " " + (x + w) + "," + (top + r) + " V" + YB + " Z";
+  }
+
+  function render() {
+    hideTip();                                   // 旧提示对应的是旧数据，重画前先关掉
+    while (svg.firstChild) svg.removeChild(svg.firstChild);
+    ticks().forEach(function (t) {
+      svg.appendChild(el("line", { x1: X0, x2: X1, y1: y(t), y2: y(t), stroke: "var(--rule)", "stroke-width": 1 }));
+      svg.appendChild(el("text", { x: X0 - 8, y: y(t) + 4, "text-anchor": "end", "font-size": 11, fill: "var(--muted)" }, String(t)));
+    });
+    for (var i = 0; i < 5; i++) {
+      svg.appendChild(el("path", { d: barPath(cx(i) - 12, y(st.c[i]), 24), fill: "var(--series-1)" }));
+      svg.appendChild(el("text", { x: cx(i), y: YB + 18, "text-anchor": "middle", "font-size": 12, fill: "var(--muted)" }, (i + 1) + " 号"));
+    }
+    svg.appendChild(el("line", { x1: X0, y1: y(10), x2: X1, y2: y(0), stroke: "var(--series-2)", "stroke-width": 2, "stroke-linecap": "round" }));
+    for (var j = 0; j < 5; j++) {
+      svg.appendChild(el("circle", { cx: cx(j), cy: y(ANSWER[j]), r: 4.5, fill: "var(--series-2)", stroke: "var(--surface)", "stroke-width": 2 }));
+    }
+    svg.appendChild(el("line", { x1: X0, x2: X0, y1: YT, y2: YB, stroke: "var(--ink)", "stroke-width": 1.5 }));
+    svg.appendChild(el("line", { x1: X1, x2: X1, y1: YT, y2: YB, stroke: "var(--ink)", "stroke-width": 1.5 }));
+    svg.appendChild(el("text", { x: X0 + 6, y: YB + 36, "font-size": 11, fill: "var(--muted)" }, "左墙钉死 10"));
+    svg.appendChild(el("text", { x: X1 - 6, y: YB + 36, "text-anchor": "end", "font-size": 11, fill: "var(--muted)" }, "右墙钉死 0"));
+    for (var k = 0; k < 5; k++) (function (idx) {
+      var hit = el("rect", { x: X0 + BAND * idx, y: YT, width: BAND, height: YB - YT, "class": "hit", tabindex: 0,
+                             "aria-label": (idx + 1) + " 号盒子，当前 " + fmt(st.c[idx]) + "，答案 " + ANSWER[idx] });
+      hit.addEventListener("pointermove", function (e) { showTip(idx, e.clientX, e.clientY); });
+      hit.addEventListener("pointerleave", hideTip);
+      hit.addEventListener("focus", function () {
+        var r = hit.getBoundingClientRect(); showTip(idx, r.left + r.width / 2, r.top + 20);
+      });
+      hit.addEventListener("blur", hideTip);
+      svg.appendChild(hit);
+    })(k);
+
+    for (var m = 0; m < 5; m++) document.getElementById("v" + m).textContent = st.c[m].toFixed(3);
+    readout.textContent = "";
+    if (st.n === 0) {
+      readout.appendChild(document.createTextNode("第 0 遍：五个盒子都是猜的 " + st.start + "。点「再扫一遍」开始。"));
+    } else {
+      readout.appendChild(document.createTextNode("第 " + st.n + " 遍 · 这一遍改动最大的盒子改了 " + fmt(st.last)));
+      if (st.done) {
+        var s = document.createElement("span");
+        s.className = "done";
+        s.textContent = " —— 小于容差 1e-6，停。";
+        readout.appendChild(s);
+      }
+    }
+  }
+
+  function showTip(i, clientX, clientY) {
+    tip.textContent = "";
+    var who = document.createElement("span"); who.className = "who"; who.textContent = (i + 1) + " 号盒子";
+    var r1 = document.createElement("span"); r1.className = "row";
+    var k1 = document.createElement("i"); k1.className = "k1";
+    var b1 = document.createElement("b"); b1.textContent = st.c[i].toFixed(3);
+    r1.appendChild(k1); r1.appendChild(b1); r1.appendChild(document.createTextNode(" 当前"));
+    var r2 = document.createElement("span"); r2.className = "row";
+    var k2 = document.createElement("i"); k2.className = "k2";
+    var b2 = document.createElement("b"); b2.textContent = String(ANSWER[i]);
+    r2.appendChild(k2); r2.appendChild(b2); r2.appendChild(document.createTextNode(" 答案"));
+    tip.appendChild(r1); tip.appendChild(r2); tip.appendChild(who);
+    tip.hidden = false;
+    var b = box.getBoundingClientRect(), tw = tip.offsetWidth;
+    var left = Math.min(Math.max(8, clientX - b.left + 12), b.width - tw - 8);
+    tip.style.left = left + "px";
+    tip.style.top = (clientY - b.top - 10) + "px";
+  }
+  function hideTip() { tip.hidden = true; }
+
+  document.getElementById("btnOne").addEventListener("click", function () { run(1); });
+  document.getElementById("btnTen").addEventListener("click", function () { run(10); });
+  document.getElementById("btnAll").addEventListener("click", function () { run(10000); });
+  document.getElementById("btnStart0").addEventListener("click", function () { restart(0); });
+  document.getElementById("btnStart100").addEventListener("click", function () { restart(100); });
+  render();
+})();
+</script>
+<script src="../assets/quiz.js"></script>
+</body>
+</html>
