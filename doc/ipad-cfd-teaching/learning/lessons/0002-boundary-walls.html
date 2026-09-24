@@ -1,0 +1,237 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>墙外面是什么</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@600;700&family=JetBrains+Mono:wght@400;500&display=swap">
+<link rel="stylesheet" href="../assets/lesson.css">
+</head>
+<body>
+<main class="sheet">
+
+  <header class="masthead">
+    <p class="eyebrow">第 5 课 · 砖块 5</p>
+    <h1>墙外面是什么</h1>
+    <p class="lede">一排盒子的最两端，墙的另一边没有盒子。这一课讲清这种墙怎么写。学完你能写出一排盒子两端那两个盒子的方程。</p>
+    <p class="meta"><span>约 8 分钟</span><span>前置：第 4 课（<code>w = D·A/d</code>）</span><span>一个概念，两种墙</span></p>
+  </header>
+
+  <section>
+    <h2>三十秒回顾</h2>
+    <p>第 4 课：每道墙的权重</p>
+    <pre class="formula"><code>w = D * A / d          d = 两个盒子【中心之间】的距离</code></pre>
+    <p>内部的每一道墙，两边都有盒子，所以这一项总能写出来：</p>
+    <pre class="formula"><code>流进 P 的墨量 = w * (C_邻居 − C_P)</code></pre>
+    <p>这一课只处理一个问题：<strong>墙的另一边没有邻居时怎么办。</strong></p>
+  </section>
+
+  <section>
+    <h2>一 · 边界墙缺了什么</h2>
+    <figure>
+      <svg viewBox="0 0 600 215" role="img" aria-label="一排三个盒子，最左边是边界墙，墙外没有盒子。盒子中心到边界墙的距离是半格，到相邻盒子中心的距离是一格">
+        <defs>
+          <pattern id="b-hatch" patternUnits="userSpaceOnUse" width="9" height="9" patternTransform="rotate(45)">
+            <line x1="0" y1="0" x2="0" y2="9" stroke="var(--rule)" stroke-width="3"></line>
+          </pattern>
+          <marker id="b-ah" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto">
+            <path d="M0,1 L9,5 L0,9 z" fill="var(--accent)"></path>
+          </marker>
+          <marker id="b-ah2" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto">
+            <path d="M0,1 L9,5 L0,9 z" fill="var(--muted)"></path>
+          </marker>
+        </defs>
+
+        <rect x="20" y="40" width="100" height="100" fill="url(#b-hatch)"></rect>
+        <text x="70" y="30" text-anchor="middle" font-size="12" fill="var(--muted)">墙外：没有盒子</text>
+
+        <rect x="120" y="40" width="140" height="100" fill="var(--surface)" stroke="var(--ink)" stroke-width="1.5"></rect>
+        <rect x="260" y="40" width="140" height="100" fill="var(--surface)" stroke="var(--ink)" stroke-width="1.5"></rect>
+        <rect x="400" y="40" width="140" height="100" fill="var(--surface)" stroke="var(--ink)" stroke-width="1.5"></rect>
+        <line x1="120" y1="40" x2="120" y2="140" stroke="var(--accent)" stroke-width="5"></line>
+        <text x="120" y="30" text-anchor="middle" font-size="13" fill="var(--accent)" font-weight="600">边界墙</text>
+
+        <circle cx="190" cy="90" r="4" fill="var(--ink)"></circle>
+        <circle cx="330" cy="90" r="4" fill="var(--ink)"></circle>
+        <circle cx="470" cy="90" r="4" fill="var(--ink)"></circle>
+        <text x="190" y="76" text-anchor="middle" font-size="14" fill="var(--ink)" font-weight="600">1</text>
+        <text x="330" y="76" text-anchor="middle" font-size="14" fill="var(--ink)" font-weight="600">2</text>
+        <text x="470" y="76" text-anchor="middle" font-size="14" fill="var(--ink)" font-weight="600">3</text>
+
+        <line x1="120" y1="145" x2="120" y2="180" stroke="var(--rule)" stroke-width="1"></line>
+        <line x1="190" y1="145" x2="190" y2="205" stroke="var(--rule)" stroke-width="1"></line>
+        <line x1="330" y1="145" x2="330" y2="205" stroke="var(--rule)" stroke-width="1"></line>
+
+        <line x1="120" y1="172" x2="190" y2="172" stroke="var(--accent)" stroke-width="1.5" marker-start="url(#b-ah)" marker-end="url(#b-ah)"></line>
+        <text x="200" y="176" font-size="13" fill="var(--accent)" font-weight="600">边界墙：d = Δx/2（半格）</text>
+
+        <line x1="190" y1="198" x2="330" y2="198" stroke="var(--muted)" stroke-width="1" marker-start="url(#b-ah2)" marker-end="url(#b-ah2)"></line>
+        <text x="340" y="202" font-size="12" fill="var(--muted)">内部墙：d = Δx（一格）</text>
+      </svg>
+      <figcaption>1 号盒子的右墙两边都是盒子中心，相距一格。左墙外面什么都没有 —— 从 1 号的中心量过去，最近的就是墙本身，只有半格。</figcaption>
+    </figure>
+    <p>1 号盒子的左墙，公式里的 <code>C_邻居</code> 没有了着落。所以边界墙要回答两个问题：</p>
+    <ol>
+      <li>这道墙的 <code>d</code> 是多少？</li>
+      <li>墙外面的浓度是多少 —— 或者，这道墙到底通不通？</li>
+    </ol>
+  </section>
+
+  <section>
+    <h2>二 · d 只有半格</h2>
+    <p>直接用第 4 课：<code>d</code> 是从盒子中心量到"对面那个已知点"的距离。边界墙对面没有盒子中心，最近的已知点就是<strong>墙本身</strong>。盒子中心到自己的墙，正好半格：</p>
+    <pre class="formula"><code>w_边界 = D * A / (Δx/2)
+       = 2 * (D * A / Δx)
+       = 2k                       k = 内部墙的权重</code></pre>
+    <div class="callout key">
+      <span class="label">结论</span>
+      <p><strong>边界墙的权重是内部墙的两倍。</strong>这不是规定，是第 4 课的公式代入半格距离的结果。</p>
+    </div>
+    <div class="callout warn">
+      <span class="label">常见错误</span>
+      <p>照抄内部墙的 <code>k</code>。这等于假装墙外半格处还有一个盒子 —— 相当于把墙往外推了半格。练习第 3 题会让你算出后果。</p>
+    </div>
+  </section>
+
+  <section>
+    <h2>三 · 两种边界墙</h2>
+    <div class="scroll">
+    <table>
+      <thead><tr><th></th><th>钉死浓度的墙</th><th>不透水的墙</th></tr></thead>
+      <tbody>
+        <tr><td>现实里是什么</td><td>墙外接着一大缸浓度不变的墨水，被抽走多少就补多少</td><td>一块玻璃，墨水穿不过去</td></tr>
+        <tr><td>流进 P 的墨量</td><td><code>2k * (C_墙 − C_P)</code></td><td><code>0</code></td></tr>
+        <tr><td>OpenFOAM 里叫</td><td><code>fixedValue</code>（固定值）</td><td><code>zeroGradient</code>（零梯度）</td></tr>
+      </tbody>
+    </table>
+    </div>
+    <p><strong>钉死浓度的墙</strong>：和内部墙是同一个式子，只换两处 —— <code>C_邻居</code> 换成墙上已知的 <code>C_墙</code>，<code>k</code> 换成 <code>2k</code>。</p>
+    <p><strong>不透水的墙</strong>：这一项直接是 0。写方程时，这个方向<strong>什么都不加</strong>。名字叫"零梯度"是因为：墙上浓度的坡度为零，按第 4 课，坡度为零就没有流量。</p>
+    <div class="callout warn">
+      <span class="label">最容易搞反的地方</span>
+      <p><strong>不透水 ≠ 把墙钉死成 0。</strong></p>
+      <p>「钉死成 0」= 墙外是一大缸清水，拼命把墨吸走。<br>「不透水」= 墨根本出不去，全留在里面。</p>
+      <p>一个是无底洞，一个是玻璃。方向完全相反。</p>
+    </div>
+  </section>
+
+  <section>
+    <h2>四 · 写出两端盒子的方程</h2>
+    <p>一排 5 个盒子，均匀网格，稳态。左墙钉死 <code>C = 10</code>，右墙钉死 <code>C = 0</code>。内部墙权重 <code>k</code>，边界墙 <code>2k</code>。</p>
+    <ol class="steps">
+      <li>
+        <strong>中间三个盒子：和砖块 3 一模一样</strong>
+        <pre class="formula"><code>C_2 = (C_1 + C_3) / 2
+C_3 = (C_2 + C_4) / 2
+C_4 = (C_3 + C_5) / 2</code></pre>
+      </li>
+      <li>
+        <strong>1 号盒子：左墙是边界（2k，墙上 10），右墙是内部（k，邻居 C_2）</strong>
+        <pre class="formula"><code>2k * (10 − C_1) + k * (C_2 − C_1) = 0
+
+展开：   20k − 2k*C_1 + k*C_2 − k*C_1 = 0
+整理：   3k * C_1 = 20k + k*C_2
+两边除以 k：
+         C_1 = (20 + C_2) / 3</code></pre>
+      </li>
+      <li>
+        <strong>5 号盒子：同理，左墙内部（k，邻居 C_4），右墙边界（2k，墙上 0）</strong>
+        <pre class="formula"><code>k * (C_4 − C_5) + 2k * (0 − C_5) = 0
+⇒  C_5 = C_4 / 3</code></pre>
+      </li>
+      <li>
+        <strong>把答案代回去检查</strong>
+        <p>五条方程联立解出来是 <code>9, 7, 5, 3, 1</code>。逐条代回：</p>
+        <pre class="formula"><code>C_1 = (20 + 7) / 3 = 27 / 3 = 9     ✓
+C_2 = (9 + 5) / 2        = 7        ✓
+C_3 = (7 + 3) / 2        = 5        ✓
+C_4 = (5 + 1) / 2        = 3        ✓
+C_5 = 3 / 3              = 1        ✓</code></pre>
+        <p>下一节告诉你：其实不用解方程，也能直接看出是这五个数。</p>
+      </li>
+    </ol>
+    <p>注意 1 号盒子的式子：分母是 3，不是 2。<strong>边界上的盒子，不再是"两个邻居的平均"</strong> —— 墙那一侧的权重是 2，把它往墙上的值拉得更紧。</p>
+  </section>
+
+  <section>
+    <h2>五 · 验收尺子</h2>
+
+    <h3>尺子一：直线钉在墙上，不钉在盒子上</h3>
+    <p>砖块 3 说过：一维、稳态、无源 ⇒ 解是直线。现在补全这句话：<strong>这条直线的两端钉在墙上</strong>，不是钉在两端盒子的中心上。</p>
+    <pre class="formula"><code>全长 L，左墙 x = 0 处是 10，右墙 x = L 处是 0
+⇒  C(x) = 10 − 10 * x / L
+
+5 个盒子，每格宽 0.2L，中心在 (编号 − 0.5) * 0.2L：
+    x = 0.1L   0.3L   0.5L   0.7L   0.9L
+    C =  9      7      5      3      1</code></pre>
+    <p>这就是第四节那五个数，不用解方程。</p>
+    <p>所以<strong>第一个盒子是 9，不是 10</strong>。10 是墙上的值，9 是半格之外那个盒子中心的值。写代码时最容易把这两个搞混。</p>
+
+    <h3>尺子二：平场保持平</h3>
+    <p>两端都钉死成 5 ⇒ 五个盒子必须<strong>全是 5</strong>。代码写好先跑这个，分母漏加、2k 写错，一跑就露馅。</p>
+
+    <h3>尺子三：一端钉死、一端不透水 ⇒ 全场等于钉死的那个值</h3>
+    <p>左墙钉死 10，右墙不透水，稳态 ⇒ 五个盒子<strong>全是 10</strong>。推理只用两条你已经会的东西：</p>
+    <pre class="formula"><code>砖块 2：一维稳态，每个盒子进 = 出 ⇒ 每道墙过的墨一样多
+不透水的那道墙过的墨是 0
+⇒ 每道墙过的墨都是 0
+⇒ 任何两个相邻盒子之间都没有浓度差
+⇒ 全场一样，等于左墙钉死的 10</code></pre>
+    <p>如果你的程序在这个设置下算出了任何不是 10 的数，不透水的墙就写错了 —— 多半是写成了"钉死成 0"。</p>
+  </section>
+
+  <section>
+    <h2>练习</h2>
+    <p>每题只有一次机会，凭理解选，别回头翻。答错了也会告诉你为什么。</p>
+    <div class="quiz" id="quiz">
+
+      <div class="q" data-answer="0">
+        <p class="stem">1. 均匀网格，格宽 <code>Δx</code>。边界墙的 <code>d</code> 是多少？</p>
+        <div class="opts">
+          <button class="opt" type="button" aria-pressed="false">半个格宽</button>
+          <button class="opt" type="button" aria-pressed="false">一个格宽</button>
+          <button class="opt" type="button" aria-pressed="false">两个格宽</button>
+          <button class="opt" type="button" aria-pressed="false">零个格宽</button>
+        </div>
+        <p class="fb" hidden data-fb="盒子中心到自己的墙是半格。代入 <code>w = D*A/d</code>，<code>d</code> 减半，<code>w</code> 翻倍，得到 <code>2k</code>。"></p>
+      </div>
+
+      <div class="q" data-answer="0">
+        <p class="stem">2. 一排盒子，左墙钉死 <code>C = 10</code>，右墙不透水，稳态。中间任意一个盒子的浓度是多少？</p>
+        <div class="opts">
+          <button class="opt" type="button" aria-pressed="false">处处为十</button>
+          <button class="opt" type="button" aria-pressed="false">处处为零</button>
+          <button class="opt" type="button" aria-pressed="false">处处为五</button>
+          <button class="opt" type="button" aria-pressed="false">中间最高</button>
+        </div>
+        <p class="fb" hidden data-fb="不透水的墙过的墨是 0；一维稳态每道墙过的墨一样多 ⇒ 每道墙都是 0 ⇒ 相邻盒子间没有浓度差 ⇒ 全场等于钉死的 10。选「处处为零」说明把不透水当成了钉死成 0。"></p>
+      </div>
+
+      <div class="q" data-answer="1">
+        <p class="stem">3. 5 个盒子，两端钉死 10 和 0。如果边界墙错用了 <code>k</code>（而不是 <code>2k</code>），1 号盒子算出来会怎样？（正确值是 9）</p>
+        <div class="opts">
+          <button class="opt" type="button" aria-pressed="false">高于九</button>
+          <button class="opt" type="button" aria-pressed="false">低于九</button>
+          <button class="opt" type="button" aria-pressed="false">等于九</button>
+          <button class="opt" type="button" aria-pressed="false">等于十</button>
+        </div>
+        <p class="fb" hidden data-fb="错用 <code>k</code> 等于假装墙外半格处还有一个盒子，把两端的墙各往外推了半格。直线变成从 <code>x = −0.1L</code> 处的 10 画到 <code>x = 1.1L</code> 处的 0，更缓了。1 号盒子在 <code>x = 0.1L</code>：<code>10 − 10 × (0.2 / 1.2) ≈ 8.33</code>，低于 9。<strong>而且解仍然是一条直线</strong> —— 「是不是直线」这把尺子抓不住它，必须用尺子一：拿墙上的值去比。"></p>
+      </div>
+
+    </div>
+  </section>
+
+  <footer>
+    <p><strong>下一步：</strong>一排盒子的方程互相咬着（砖块 3），不能一个一个算。怎么真的把它们解出来？—— 迭代法。然后你就能写第一个程序了。</p>
+    <p><strong>这一课在 cavity 里的样子：</strong>OpenFOAM 的 cavity 算例（本仓库 <code>tutorials/legacy/incompressible/icoFoam/cavity/cavity/0/</code>）里，压力文件 <code>p</code> 的四面墙全是 <code>zeroGradient</code>，速度文件 <code>U</code> 的顶盖是 <code>fixedValue</code>，值为 <code>(1 0 0)</code> —— 就是那个以 1 m/s 向右拖动的盖子。你现在认得这两个词了。</p>
+    <p><strong>主要参考：</strong>上面那两个文件本身 —— 它们是 OpenFOAM 里边界条件最真实的样子，比任何教科书都权威。理论推导见 <a href="https://spiral.imperial.ac.uk/handle/10044/1/8335">Jasak (1996)</a> 第 3 章讲边界条件的部分。</p>
+    <p><strong>卡住了就回到对话里问我。</strong>这页上任何一句讲不清楚都可以让我重讲 —— 打 <code>/wait-what</code>。</p>
+  </footer>
+
+</main>
+
+<script src="../assets/quiz.js"></script>
+</body>
+</html>

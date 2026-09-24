@@ -16,8 +16,11 @@
 > - `GLOSSARY.md` —— 规范用语，所有材料以此为准
 > - `RESOURCES.md` —— 一手来源与社区
 > - `lessons/*.html` —— 按顺序学的课，每课一个 win，带交互练习
->   - 第 4 课「一道墙有多好通」也已发布为可交互页面：https://claude.ai/artifact/9QFhZn1umBSL72876VzQDx
->     （仓库里的 `lessons/0001-wall-conductance.html` 是同一份，样式取自 `assets/lesson.css`）
+>   - 第 4 课「一道墙有多好通」：https://claude.ai/artifact/9QFhZn1umBSL72876VzQDx
+>   - 第 5 课「墙外面是什么」：https://claude.ai/artifact/AhdqZVCqidAKMPhMB8wkX5
+>   - 仓库里的 `lessons/*.html` 是同一份源文件，共享 `assets/lesson.css` 与 `assets/quiz.js`；
+>     发布页是把这两个组件内联进去后的自包含版本
+> - `crosswalk-stable-fluids.md` 的「解锁」列：只看 ✅ 行，🔒 行走到对应砖块再打开
 > - `reference/*.html` —— 打印友好的速查卡
 > - `learning-records/*.md` —— 已确认掌握的东西，用来判断下一步教什么
 
@@ -167,7 +170,8 @@
    并由此补上「数值扩散」这一课（见砖块 10 末尾）。
 🔄 **当前模式（2026-08-29 起）：按砖块顺序重走一遍。** 每砖讲透、结尾答题才过关。
    本文件从此只当**索引与备忘**，不作为「已掌握」的凭证 —— 写过 ≠ 讲透。
-   **当前位置：砖块 4（把 w 拆开，已讲、待答题）**；砖块 1–3 均已答题通过。
+   **当前位置：砖块 4 在读（第 4 课），砖块 5 已发布（第 5 课）**；砖块 1–3 均已答题通过。
+   两课都在页面内答题，答完回对话报结果。
    另建 `formula-cheatsheet.md` 收录重走中已讲透的全部公式与累积验收尺子。
 🔜 重走到位后再回砖块 11A —— 把动量方程离散成 `a_P·U_P = H(U) − V·(∇p)_P`，
    认出 `a_P` 就是你写过的分母（weightTotal）、`H(U)` 就是你写过的分子。

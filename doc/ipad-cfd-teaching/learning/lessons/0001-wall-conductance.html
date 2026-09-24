@@ -244,27 +244,8 @@ C_左 = 10 kg/m³ ，C_右 = 4 kg/m³</code></pre>
   [D, A, d].forEach(function (el) { el.addEventListener("input", recalc); });
   recalc();
 
-  document.querySelectorAll("#quiz .q").forEach(function (q) {
-    var answer = parseInt(q.getAttribute("data-answer"), 10);
-    var opts = Array.prototype.slice.call(q.querySelectorAll(".opt"));
-    var fb = q.querySelector(".fb");
-    opts.forEach(function (btn, i) {
-      btn.addEventListener("click", function () {
-        if (btn.disabled) return;
-        var correct = (i === answer);
-        btn.setAttribute("aria-pressed", "true");
-        btn.classList.add(correct ? "right" : "wrong");
-        opts.forEach(function (b, j) {
-          b.disabled = true;
-          if (j === answer) b.classList.add("right");
-        });
-        fb.classList.add(correct ? "right" : "wrong");
-        fb.innerHTML = (correct ? "<strong>对了。</strong> " : "<strong>不对。</strong> ") + fb.getAttribute("data-fb");
-        fb.hidden = false;
-      });
-    });
-  });
 })();
 </script>
+<script src="../assets/quiz.js"></script>
 </body>
 </html>
