@@ -1,0 +1,205 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>第一个求解器</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@600;700&family=JetBrains+Mono:wght@400;500&display=swap">
+<link rel="stylesheet" href="../assets/lesson.css">
+</head>
+<body>
+<main class="sheet">
+
+  <header class="masthead">
+    <p class="eyebrow">第 6 课 · 砖块 6 · Diffusion1D.swift</p>
+    <h1>你的第一个求解器</h1>
+    <p class="lede">把砖块 1–5 和插页 A 的手算交给计算机。这一课<strong>不给代码</strong>——给你设计图、要用到的 Swift 知识点、容易错的地方，以及写完拿来对照的标准答案。你写，我点评。</p>
+    <p class="meta"><span>动手，约 30–60 分钟</span><span>前置：砖块 1–5、插页 A</span><span>产出：<code>Diffusion1D.swift</code></span></p>
+  </header>
+
+  <section>
+    <h2>一 · 先定验收尺子（写代码之前）</h2>
+    <p>写第一行代码之前，先定好"什么输出算对"。下面每一条都是你已经会推的东西，数字我都用同样的规则算过一遍。</p>
+    <div class="scroll">
+    <table>
+      <thead><tr><th>#</th><th>设定</th><th>期望输出</th><th>抓什么错</th></tr></thead>
+      <tbody>
+        <tr><td>1</td><td><strong>情形甲</strong>，5 个盒子：左墙钉死 10，右墙钉死 0；初值全 0，容差 <code>1e-6</code></td><td><code>9.000 7.000 5.000 3.000 1.000</code>，约 37 遍</td><td>方程、2k、写回</td></tr>
+        <tr><td>2</td><td><strong>情形乙</strong>，5 个盒子：左墙钉死 10，右墙<strong>不透水</strong></td><td>全是 <code>10.000</code></td><td>把不透水写成了钉死成 0</td></tr>
+        <tr><td>3</td><td>平场：两面墙都钉死 5，初值全 0</td><td>全是 <code>5.000</code></td><td>分母漏加</td></tr>
+        <tr><td>4</td><td>情形甲，把扩散系数 <code>D</code> 放大 100 倍</td><td>和第 1 条<strong>一个数字都不差</strong></td><td>权重没有统一用 <code>k</code></td></tr>
+        <tr><td>5</td><td>情形甲，只有 <strong>1</strong> 个盒子</td><td><code>5.000</code></td><td>一个盒子两面都是边界墙时的判断</td></tr>
+        <tr><td>6</td><td>情形甲，<strong>10</strong> 个盒子</td><td><code>9.5 8.5 7.5 … 1.5 0.5</code></td><td>下标、循环的起止</td></tr>
+      </tbody>
+    </table>
+    </div>
+    <p><strong>遍数差一两遍不算错</strong>——取决于你把"是否该停"的判断写在循环的哪个位置。差得多才要查。</p>
+
+    <h3>第 4 条为什么成立</h3>
+    <p>稳态方程里每一项都乘着同一个 <code>k</code>，而 <code>k = D·A/Δx</code> 里有 <code>D</code>。算 <code>分子 / 分母</code> 时，<code>k</code> 上下约掉，<code>D</code> 也就跟着没了。</p>
+    <div class="callout key">
+      <span class="label">物理意思</span>
+      <p><strong><code>D</code> 决定墨水多快到达稳态，不决定稳态在哪。</strong>现在我们只算"最后停在哪"，所以 <code>D</code> 不起作用。到砖块 8 算"随时间怎么变"时，它就要起作用了。</p>
+    </div>
+    <p>那门图形课的做法是"先写测试、看它红、再写代码让它变绿"。上面这张表就是同一个思路，只是不用测试框架——你自己对照输出。</p>
+  </section>
+
+  <section>
+    <h2>二 · 四层翻译</h2>
+    <p>写任何求解器都按这四层走，<strong>不许跳级</strong>：碰键盘之前，前三层要先想清楚。</p>
+
+    <h3>第一层 · 物理</h3>
+    <p>一排 <code>N</code> 个盒子，两面墙，稳态，墨从浓流向淡。你已经会了。</p>
+
+    <h3>第二层 · 数学</h3>
+    <p>每个盒子一条方程：<code>C_P = 分子 / 分母</code>。内部墙贡献 <code>k·C_邻居</code> 和 <code>k</code>；钉死浓度的墙贡献 <code>2k·C_墙</code> 和 <code>2k</code>；不透水的墙什么都不贡献（砖块 2、5）。然后高斯-塞德尔扫到最大改动小于容差（插页 A）。你也已经会了。</p>
+
+    <h3>第三层 · 数据结构：要存哪些东西</h3>
+    <p>先自己想一下再往下看。</p>
+    <ul>
+      <li>一个长度 <code>N</code> 的数组，存每个盒子的浓度</li>
+      <li>左墙、右墙各一个"墙的描述"：哪种墙？如果是钉死的，值是多少？</li>
+      <li>内部墙的权重 <code>k</code>，由 <code>D</code>、<code>A</code>、<code>Δx = L / N</code> 算出来</li>
+      <li>容差，以及"最多扫几遍"——一根保险丝</li>
+    </ul>
+
+    <h3>第四层 · 代码结构（用话说，Swift 你来写）</h3>
+    <pre class="formula"><code>准备：算出 Δx 和 k；数组填上初始猜测
+
+重复，直到「最大改动 &lt; 容差」或「扫满保险丝上限」：
+    最大改动 ← 0                              ← 每一遍开头清零
+    对每个盒子 i，从第一个到最后一个：
+        分子 ← 0，分母 ← 0
+        看左边：i 是第一个盒子吗？
+            不是 → 左边是邻居，按内部墙算
+            是   → 左边是边界墙，按墙的种类算
+        看右边：i 是最后一个盒子吗？（同理）
+        新值 ← 分子 / 分母
+        最大改动 ← max(最大改动, |新值 − 旧值|)
+        把新值写回数组                          ← 别忘了
+
+打印：每个盒子的值、一共扫了几遍</code></pre>
+    <p>注意"看左边"和"看右边"是<strong>两个独立的判断</strong>，不是 if/else 二选一。只有一个盒子时，它两边都是边界墙——尺子 5 专门查这个。</p>
+  </section>
+
+  <section>
+    <h2>三 · 要用到的 Swift</h2>
+    <p>下面每一段只演示一个语法点，<strong>不是你的程序</strong>。你把它们组合起来。</p>
+    <pre class="formula"><code>import Foundation                     // 要用 String(format:) 就得先写这行
+
+let n = 5                             // let：定了就不再改
+var total = 0.0                       // var：之后要改；写 0.0 而不是 0，Swift 才知道是小数
+let x = 1.0 / Double(n)               // Int 和 Double 不会自动换算，必须写 Double(...)
+
+var c = [Double](repeating: 0.0, count: n)   // 长度 n、全是 0.0 的数组
+c[0] = 3.5                            // 下标从 0 开始；数组要改内容，就必须用 var 声明
+
+for i in 0..&lt;n { print(i) }           // 依次打印 0, 1, …, n−1（不含 n）
+while total &lt; 10.0 { total += 1.0 }   // 条件成立就一直做
+
+let bigger = max(2.0, 3.0)            // 两数取大
+let size = abs(-4.2)                  // 绝对值
+
+print(String(format: "%.3f", 9.0))    // 保留三位小数输出：9.000</code></pre>
+
+    <h3>墙的描述：推荐用 enum</h3>
+    <pre class="formula"><code>enum Wall {
+    case fixed(Double)     // 钉死浓度的墙：带着墙上的值
+    case closed            // 不透水的墙：什么都不带
+}
+
+let left = Wall.fixed(10.0)
+let right = Wall.closed
+
+switch left {
+case .fixed(let value):    // 是钉死的墙，顺便把值取出来叫 value
+    print("钉死在", value)
+case .closed:              // 是不透水的墙
+    print("不透水")
+}</code></pre>
+    <p>（每个 <code>case</code> 下面至少要有一条语句，只写注释会编译报错。）</p>
+    <p>推荐它的理由是：<strong>数据的形状和物理一致</strong>——只有钉死的墙才有一个值，不透水的墙根本没有值，<code>enum</code> 能把这件事写进类型里。用两个 <code>Bool</code> 加两个 <code>Double</code> 也能写，先跑起来最重要。</p>
+  </section>
+
+  <section>
+    <h2>四 · 易错点</h2>
+    <ol>
+      <li><strong>算出新值却没写回数组</strong> → 永远是初始猜测。你上一轮写二维版时就踩过这个（记在 README 砖块 7 条目里）。</li>
+      <li><strong>"最大改动"每一遍开头没清零</strong> → 它一直记着第一遍的大数，永远停不下来。</li>
+      <li><strong>把第一个盒子的值当成墙上的值</strong> → 第一个盒子输出 <code>10</code>，应该是 <code>9</code>。墙上的值是已知的，盒子的值要按方程算。</li>
+      <li><strong>边界墙用了 <code>k</code> 而不是 <code>2k</code></strong> → 仍是一条直线，但第一个盒子是 <code>8.33</code>（第 5 课练习第 3 题）。</li>
+      <li><strong><code>Int</code> 和 <code>Double</code> 混算</strong> → 编译报错。<code>L / N</code> 要写成 <code>L / Double(N)</code>。</li>
+      <li><strong>数组用 <code>let</code> 声明</strong> → 改内容时编译报错。</li>
+      <li><strong>没有保险丝</strong> → 只要哪里写错，程序就永远转下去，iPad 上的 App 会卡住。</li>
+    </ol>
+  </section>
+
+  <section>
+    <h2>五 · 在哪里跑</h2>
+    <p><strong>iPad：</strong>Apple 的免费 App <strong>Swift Playgrounds</strong>。新建一个空白的 playground，把代码贴进去运行，<code>print</code> 的输出在控制台里（具体菜单名以你的 App 版本为准）。</p>
+    <p><strong>Mac：</strong>Xcode 新建 playground，或者在终端里 <code>swift Diffusion1D.swift</code>。</p>
+    <p>我这边的环境装不了 Swift。你贴来代码后，我会逐行读；数值有疑问时，我用同样的逻辑在这边重算一遍来对照。</p>
+  </section>
+
+  <section>
+    <h2>六 · 写完交什么</h2>
+    <ol>
+      <li><code>Diffusion1D.swift</code> 的全文</li>
+      <li>尺子 1–6 的运行输出</li>
+      <li><strong>给下一个插页准备的</strong>：情形甲，盒子数分别取 5、10、20、40，<strong>各扫了几遍</strong>才停？记下这四个数。先别猜为什么，只管量。</li>
+    </ol>
+  </section>
+
+  <section>
+    <h2>练习</h2>
+    <p>写代码前先过一遍，每题一次机会。</p>
+    <div class="quiz" id="quiz">
+
+      <div class="q" data-answer="0">
+        <p class="stem">1. 每一遍开头如果忘了把"最大改动"清零，程序会怎样？</p>
+        <div class="opts">
+          <button class="opt" type="button" aria-pressed="false">永远停不下</button>
+          <button class="opt" type="button" aria-pressed="false">停得太早了</button>
+          <button class="opt" type="button" aria-pressed="false">结果全是零</button>
+          <button class="opt" type="button" aria-pressed="false">没什么影响</button>
+        </div>
+        <p class="fb" hidden data-fb="它会一直记着第一遍那个大改动（情形甲是 6.667），永远不会小于容差，只能等保险丝把循环掐断。这也是保险丝必不可少的原因。"></p>
+      </div>
+
+      <div class="q" data-answer="0">
+        <p class="stem">2. 两面墙都钉死。把扩散系数 <code>D</code> 放大 100 倍，稳态答案会怎样？</p>
+        <div class="opts">
+          <button class="opt" type="button" aria-pressed="false">一个都不变</button>
+          <button class="opt" type="button" aria-pressed="false">全放大百倍</button>
+          <button class="opt" type="button" aria-pressed="false">全缩小百倍</button>
+          <button class="opt" type="button" aria-pressed="false">变成平直线</button>
+        </div>
+        <p class="fb" hidden data-fb="每一项都乘着同一个 <code>k</code>，<code>k</code> 里有 <code>D</code>，分子分母一起约掉。<code>D</code> 决定多快到稳态，不决定稳态在哪——砖块 8 算随时间的变化时才会看到它起作用。"></p>
+      </div>
+
+      <div class="q" data-answer="0">
+        <p class="stem">3. 情形甲、5 个盒子，你的程序输出的第一个盒子是 <code>10.000</code>。最可能错在哪？</p>
+        <div class="opts">
+          <button class="opt" type="button" aria-pressed="false">把墙值当盒值</button>
+          <button class="opt" type="button" aria-pressed="false">边界少乘了二</button>
+          <button class="opt" type="button" aria-pressed="false">改动没有清零</button>
+          <button class="opt" type="button" aria-pressed="false">数组写成常量</button>
+        </div>
+        <p class="fb" hidden data-fb="10 是左墙上的值，第一个盒子在墙内半格处，应该是 9。多半是直接把 <code>c[0]</code> 设成了左墙的值，没有按方程算它。另外三个选项的症状不一样：边界少乘二会得到 8.33；改动不清零是停不下来；数组写成常量根本编译不过。"></p>
+      </div>
+
+    </div>
+  </section>
+
+  <footer>
+    <p><strong>下一步：</strong>你把代码和输出贴过来，我点评。然后是插页 B —— 从你量出来的那四个遍数讲起：为什么盒子翻倍，要扫的遍数涨得比翻倍还快。</p>
+    <p><strong>主要参考：</strong>Apple 官方的 <a href="https://docs.swift.org/swift-book/"><em>The Swift Programming Language</em></a>，只读两章：<strong>The Basics</strong>（常量变量、类型、数组）和 <strong>Enumerations</strong>（带值的 enum 与 switch）。</p>
+    <p><strong>卡住了就回到对话里问我</strong>——编译报错时，把报错原文整段贴过来，比描述快得多。</p>
+  </footer>
+
+</main>
+<script src="../assets/quiz.js"></script>
+</body>
+</html>

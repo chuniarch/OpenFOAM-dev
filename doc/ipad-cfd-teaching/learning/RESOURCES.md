@@ -14,6 +14,10 @@
   FVM 的标准入门教材，控制体记账讲得最平实。
   用于：砖块 1–10 的传统教科书对照版本。注意：它的扩散章节以热传导为例，与本工作区的"水和墨水"口径不同，读时自行换皮。
 
+- [Apple, *The Swift Programming Language*（官方语言指南，免费在线）](https://docs.swift.org/swift-book/)
+  用于：写 Swift 求解器时查语法。第 6 课只需要 **The Basics**（常量变量、类型、数组）与 **Enumerations**
+  （带值的 enum 与 switch）两章。⚠ 本会话网络策略对 docs.swift.org 返回 403，链接未能核实，按官方长期使用的根地址记录。
+
 - [OpenFOAM v13 User Guide（CFD Direct，免费在线）](https://doc.cfd.direct/openfoam/user-guide-v13/contents)
   本仓库 `OpenFOAM-dev` 属于 OpenFOAM Foundation（openfoam.org）这一支，对应的就是这份指南。
   用于：`fvSchemes` / `fvSolution` 里每个关键词的含义、cavity 算例的输入文件。
