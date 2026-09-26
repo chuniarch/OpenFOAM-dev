@@ -47,3 +47,6 @@
 - 本会话产出一律写到 `openfoam-learning/main` 分支，不新建 `claude/*` 分支。
 - 文档落盘后 commit + push，不留在对话里。
 - `.claude/skills/` 三个分支（openfoam-learning/main、master、ipad-cfd-teaching/main）保持同步。
+- 发布课文一律走 `tools/build_artifact.py`，别再手拼。它会拦下三类曾经真实出过的错：发布页里残留 `../` 引用、
+  内联脚本被注释里的闭合标签截断、练习解释 `data-fb="…"` 被英文直引号截断（解释里的引号一律用「」）。
+- 共享样式里有全局 `[hidden] { display: none !important; }`，组件别再依赖浏览器默认的隐藏。

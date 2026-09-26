@@ -1,0 +1,295 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>越细越慢</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@600;700&family=JetBrains+Mono:wght@400;500&display=swap">
+<link rel="stylesheet" href="../assets/lesson.css">
+</head>
+<body>
+<main class="sheet">
+
+  <header class="masthead">
+    <p class="eyebrow">插页 B · 砖块 6 之后</p>
+    <h1>越细越慢</h1>
+    <p class="lede">第 6 课的程序量出来：5 个盒子扫 37 遍，40 个盒子扫 1705 遍。盒子多 8 倍，遍数多 46 倍。这一课讲清为什么——用的全是你已经会的东西。</p>
+    <p class="meta"><span>约 10 分钟</span><span>前置：插页 A、第 6 课</span><span>一个现象，一个原因</span></p>
+  </header>
+
+  <section>
+    <h2>一 · 先把数字摆出来</h2>
+    <p>情形甲，初值全 0，容差 <code>1e-6</code>，高斯-塞德尔。前四行就是第 6 课参考答案第 5 段的输出，最后一行是我多跑的：</p>
+    <div class="scroll">
+    <table>
+      <thead><tr><th>盒子数 N</th><th>扫了几遍</th><th>比上一行多几倍</th></tr></thead>
+      <tbody>
+        <tr><td>5</td><td>37</td><td>—</td></tr>
+        <tr><td>10</td><td>133</td><td>3.6</td></tr>
+        <tr><td>20</td><td>480</td><td>3.6</td></tr>
+        <tr><td>40</td><td>1705</td><td>3.6</td></tr>
+        <tr><td>80</td><td>5941</td><td>3.5</td></tr>
+      </tbody>
+    </table>
+    </div>
+    <p>盒子数每翻一倍，遍数多三倍半，越往后越接近<strong>四倍</strong>。四倍就是二的平方：<strong>遍数大约跟 N² 成正比</strong>。</p>
+    <p>而每一遍本身要算 N 个盒子，所以<strong>总工作量大约跟 N³ 成正比</strong>。这才是让人头疼的地方。</p>
+  </section>
+
+  <section>
+    <h2>二 · 换个角度：看"离答案还差多少"</h2>
+    <p>把每个盒子的<strong>误差</strong>定义成：现在的值 − 答案。解方程，就是把误差一遍遍磨成 0。</p>
+    <p>误差每一遍怎么变？两行就能推出来：</p>
+    <pre class="formula"><code>每一遍：   新值 = (Σ w × 邻居的值   + 墙那一项) / Σw
+答案本身： 答案 = (Σ w × 邻居的答案 + 墙那一项) / Σw     ← 答案满足同一个方程
+
+两式相减： 新误差 = (Σ w × 邻居的误差) / Σw               ← 墙那一项正好消掉</code></pre>
+    <p>所以误差的变化规则和浓度一模一样，<strong>只是两面墙都变成了 0</strong>。下面只看误差。</p>
+  </section>
+
+  <section>
+    <h2>三 · 锯齿好磨，平缓难磨</h2>
+    <p>回想第 4 课答疑里那句话：<code>邻居平均 − 自己</code> 衡量"你比邻居高了多少、低了多少"。每一遍的改动，大小就由它决定。</p>
+    <div class="scroll">
+    <table>
+      <thead><tr><th>误差的形状</th><th>邻居平均 − 自己</th><th>每遍改动</th><th>N = 20 实测最大误差</th></tr></thead>
+      <tbody>
+        <tr><td><strong>锯齿</strong>：+1, −1, +1, −1 …</td><td>很大（邻居和自己正好反着）</td><td>大</td><td>1.000 → 0.333 → 0.111（前两遍）</td></tr>
+        <tr><td><strong>平缓鼓包</strong>：中间高、两头低，一个包</td><td>很小（邻居和自己几乎一样）</td><td>小</td><td>2.000 → 1.947 → 1.901 …… 第 50 遍 0.586</td></tr>
+      </tbody>
+    </table>
+    </div>
+    <p>头几遍改得猛，是锯齿形的误差在被迅速磨掉；后面越改越少，是只剩下平缓的误差，每遍只能削一点点。插页 A 最后一列"头几遍改得很猛，后面越改越少"，就是这件事。</p>
+    <p><strong>决定要扫多少遍的，是最平缓的那一部分误差。</strong></p>
+  </section>
+
+  <section>
+    <h2>试一试</h2>
+    <p>20 个盒子，两面墙都是 0，横线就是答案（误差为 0）。换着三种初始误差各点几下，看锯齿和鼓包各要几遍才磨平。</p>
+    <div class="viz" id="errViz">
+      <div class="controls">
+        <button class="ctl" type="button" id="eOne">再扫一遍</button>
+        <button class="ctl" type="button" id="eTen">连扫十遍</button>
+        <button class="ctl" type="button" id="eHundred">连扫一百遍</button>
+        <span class="group-label">初始误差：</span>
+        <button class="ctl" type="button" id="eJag" aria-pressed="false">锯齿</button>
+        <button class="ctl" type="button" id="eHump" aria-pressed="false">鼓包</button>
+        <button class="ctl" type="button" id="eBoth" aria-pressed="true">两者叠加</button>
+      </div>
+      <p class="readout" id="eReadout" aria-live="polite"></p>
+      <svg id="eSvg" viewBox="0 0 560 250" role="img" aria-label="20 个盒子的误差折线，横线为 0"></svg>
+      <div class="tip" id="eTip" hidden></div>
+      <div class="scroll">
+      <table>
+        <thead><tr id="eHead"><th>盒子</th></tr></thead>
+        <tbody><tr id="eRow"><td>误差</td></tr></tbody>
+      </table>
+      </div>
+    </div>
+    <p>你会看到：「锯齿」两三遍就几乎平了；「鼓包」连扫一百遍还剩一截；「两者叠加」先迅速变成一个光滑的鼓包，然后慢慢塌下去。</p>
+  </section>
+
+  <section>
+    <h2>四 · 为什么是 N²</h2>
+    <p>同一个鼓包，把网格加密一倍：</p>
+    <pre class="formula"><code>① 鼓包摊到的盒子多了一倍     ⇒ 相邻两盒之间的落差变成 1/2
+② 邻居平均 − 自己，是"落差的落差"（第 4 课答疑里的二阶差分）
+                              ⇒ 变成 1/2 × 1/2 = 1/4
+③ 每遍削掉的比例就变成 1/4    ⇒ 要扫 4 倍的遍数</code></pre>
+    <p>实测平缓鼓包每遍被削掉的比例：</p>
+    <div class="scroll">
+    <table>
+      <thead><tr><th>N</th><th>每遍削掉</th><th>比上一行</th></tr></thead>
+      <tbody>
+        <tr><td>10</td><td>9.5%</td><td>—</td></tr>
+        <tr><td>20</td><td>2.45%</td><td>÷ 3.9</td></tr>
+        <tr><td>40</td><td>0.62%</td><td>÷ 4.0</td></tr>
+        <tr><td>80</td><td>0.15%</td><td>÷ 4.0</td></tr>
+      </tbody>
+    </table>
+    </div>
+    <p>整个现象就这一个原因。</p>
+  </section>
+
+  <section>
+    <h2>五 · 这对几百万网格意味着什么</h2>
+    <p>三维的道理一样：遍数的量级跟"每边格数的平方"走。每边从 20 格加到 40 格：格子多 8 倍，遍数多约 4 倍，<strong>总工作量多约 32 倍</strong>。</p>
+    <p>这就是 OpenFOAM 不只靠高斯-塞德尔的原因。cavity 的速度方程用它没问题，但压力方程用的是 <code>PCG</code>（上一课你见过的那份 <code>fvSolution</code>）。本仓库的教程算例里，出现最多的求解器是 <code>GAMG</code>——多重网格，在 188 个算例的设置里出现。</p>
+    <p>多重网格的想法正好接着这一课：<strong>平缓的误差在细网格上磨不动，那就换到粗网格上去。</strong>在粗网格上，同一个鼓包只跨几个盒子，它就变成了"锯齿"，几遍就能磨掉。这是插页 C 的内容。</p>
+  </section>
+
+  <section>
+    <h2>六 · 和那门图形课的对照</h2>
+    <p>那门课第 2 课里，方波的锐利边缘先塌，平台的峰值纹丝不动。和这一课是<strong>同一件事</strong>：加权平均先削尖锐的，后削平缓的。</p>
+    <p>在求解器里，这一半是好事（锯齿误差一下就没了），一半是坏事（平缓误差磨不动）；在那门课的平流里，它是坏事（界面被抹糊）。（对照表第 13 行，从这一课起解锁。）</p>
+  </section>
+
+  <section>
+    <h2>七 · 验收尺子（拿第 6 课的程序验）</h2>
+    <ol>
+      <li><strong>盒子数翻倍，遍数约 ×3.5～4。</strong>第 6 课程序第 5 段的输出直接看。</li>
+      <li><strong>同一个 N，容差从 <code>1e-6</code> 收紧到 <code>1e-12</code>，遍数大约翻一倍。</strong>平缓误差每遍按同一个比例缩小，要多缩小一百万倍，就要再扫差不多同样多的遍数。实测：N = 20 从 480 遍变成 1038 遍，N = 40 从 1705 遍变成 3943 遍。</li>
+    </ol>
+  </section>
+
+  <section>
+    <h2>练习</h2>
+    <p>三道都要算，别回头翻。</p>
+    <div class="quiz" id="quiz">
+
+      <div class="q" data-answer="0">
+        <p class="stem">1. 情形甲，N 从 40 加到 80。高斯-塞德尔要扫的遍数，大约变成原来的几倍？</p>
+        <div class="opts">
+          <button class="opt" type="button" aria-pressed="false">约四倍</button>
+          <button class="opt" type="button" aria-pressed="false">约两倍</button>
+          <button class="opt" type="button" aria-pressed="false">约八倍</button>
+          <button class="opt" type="button" aria-pressed="false">差不多</button>
+        </div>
+        <p class="fb" hidden data-fb="N 翻倍，「落差的落差」变成 1/4，每遍削掉的比例变成 1/4，遍数约 ×4（实测 5941 ÷ 1705 = 3.5，N 越大越接近 4）。选两倍，是只算了「落差减半」，漏了二阶差分要再减半一次。"></p>
+      </div>
+
+      <div class="q" data-answer="0">
+        <p class="stem">2. N = 20 时，平缓鼓包每扫一遍缩小到原来的 97.55%。N = 40 时大约是多少？</p>
+        <div class="opts">
+          <button class="opt" type="button" aria-pressed="false">99.4%</button>
+          <button class="opt" type="button" aria-pressed="false">98.8%</button>
+          <button class="opt" type="button" aria-pressed="false">97.6%</button>
+          <button class="opt" type="button" aria-pressed="false">95.1%</button>
+        </div>
+        <p class="fb" hidden data-fb="N = 20 每遍削掉 2.45%。N 翻倍，削掉的比例变成 1/4，约 0.61%，所以每遍剩 99.4%（实测 99.38%）。98.8% 是只除以了 2；95.1% 是反过来乘了 2；97.6% 是以为和 N 无关。"></p>
+      </div>
+
+      <div class="q" data-answer="0">
+        <p class="stem">3. 三维，每边从 10 格加到 100 格，只用高斯-塞德尔。总工作量（遍数 × 格子数）大约变成原来的多少倍？</p>
+        <div class="opts">
+          <button class="opt" type="button" aria-pressed="false">约十万倍</button>
+          <button class="opt" type="button" aria-pressed="false">约一万倍</button>
+          <button class="opt" type="button" aria-pressed="false">约一千倍</button>
+          <button class="opt" type="button" aria-pressed="false">约一百倍</button>
+        </div>
+        <p class="fb" hidden data-fb="格子数：每边 ×10，三维就是 ×1000。遍数：跟每边格数的平方走，×100。总工作量 1000 × 100 = 十万倍。选一千倍，是只算了格子数；选一百倍，是只算了遍数。"></p>
+      </div>
+
+    </div>
+  </section>
+
+  <footer>
+    <p><strong>下一步：</strong>插页 C —— 多重网格：把平缓误差搬到粗网格上，让它变成锯齿再磨掉。然后回到砖块 7 写二维程序。</p>
+    <p><strong>主要参考：</strong>本仓库里 cavity 的 <code>system/fvSolution</code>（速度用 <code>symGaussSeidel</code>，压力用 <code>PCG</code>），以及随便打开几个大一点算例的同名文件看看 <code>GAMG</code> 长什么样——这是"真实工程里怎么选求解器"最一手的材料。</p>
+    <p><strong>卡住了就回到对话里问我。</strong></p>
+  </footer>
+
+</main>
+
+<script>
+(function () {
+  var N = 20, NS = "http://www.w3.org/2000/svg";
+  var svg = document.getElementById("eSvg"), tip = document.getElementById("eTip");
+  var box = document.getElementById("errViz"), readout = document.getElementById("eReadout");
+  var X0 = 44, X1 = 548, YT = 14, YB = 214, YMIN = -1.5, YMAX = 3.5;
+  var st = { e: [], n: 0, shape: "both" };
+
+  function initial(shape) {
+    var e = [];
+    for (var i = 0; i < N; i++) {
+      var jag = (i % 2 === 0 ? 1 : -1);
+      var hump = 2 * Math.sin(Math.PI * (i + 0.5) / N);
+      e.push(shape === "jag" ? jag : shape === "hump" ? hump : jag + hump);
+    }
+    return e;
+  }
+  function sweep() {                     // 误差的高斯-塞德尔：墙都是 0（边界墙权重 2k）
+    var e = st.e;
+    for (var i = 0; i < N; i++) {
+      var num = 0, den = 0;
+      if (i > 0) { num += e[i - 1]; den += 1; } else { den += 2; }
+      if (i < N - 1) { num += e[i + 1]; den += 1; } else { den += 2; }
+      e[i] = num / den;
+    }
+    st.n++;
+  }
+  function x(i) { return X0 + (X1 - X0) * (i + 0.5) / N; }
+  function y(v) { v = Math.max(YMIN, Math.min(YMAX, v)); return YB - (v - YMIN) / (YMAX - YMIN) * (YB - YT); }
+  function el(name, attrs, text) {
+    var e = document.createElementNS(NS, name);
+    for (var k in attrs) e.setAttribute(k, attrs[k]);
+    if (text != null) e.textContent = text;
+    return e;
+  }
+  function maxAbs() { var m = 0; for (var i = 0; i < N; i++) m = Math.max(m, Math.abs(st.e[i])); return m; }
+
+  function render() {
+    hideTip();
+    while (svg.firstChild) svg.removeChild(svg.firstChild);
+    [-1, 0, 1, 2, 3].forEach(function (t) {
+      svg.appendChild(el("line", { x1: X0, x2: X1, y1: y(t), y2: y(t),
+        stroke: t === 0 ? "var(--ink)" : "var(--rule)", "stroke-width": t === 0 ? 1.5 : 1 }));
+      svg.appendChild(el("text", { x: X0 - 8, y: y(t) + 4, "text-anchor": "end", "font-size": 11, fill: "var(--muted)" }, String(t)));
+    });
+    var d = "";
+    for (var i = 0; i < N; i++) d += (i === 0 ? "M" : " L") + x(i).toFixed(1) + "," + y(st.e[i]).toFixed(1);
+    svg.appendChild(el("path", { d: d, fill: "none", stroke: "var(--series-1)", "stroke-width": 2, "stroke-linejoin": "round", "stroke-linecap": "round" }));
+    for (var j = 0; j < N; j++) {
+      svg.appendChild(el("circle", { cx: x(j), cy: y(st.e[j]), r: 4, fill: "var(--series-1)", stroke: "var(--surface)", "stroke-width": 2 }));
+    }
+    [0, 4, 9, 14, 19].forEach(function (i) {
+      svg.appendChild(el("text", { x: x(i), y: YB + 18, "text-anchor": "middle", "font-size": 11, fill: "var(--muted)" }, String(i + 1)));
+    });
+    svg.appendChild(el("text", { x: (X0 + X1) / 2, y: YB + 34, "text-anchor": "middle", "font-size": 11, fill: "var(--muted)" }, "盒子编号"));
+    var band = (X1 - X0) / N;
+    for (var k = 0; k < N; k++) (function (idx) {
+      var hit = el("rect", { x: X0 + band * idx, y: YT, width: band, height: YB - YT, "class": "hit", tabindex: 0,
+                             "aria-label": (idx + 1) + " 号盒子，误差 " + st.e[idx].toFixed(3) });
+      hit.addEventListener("pointermove", function (ev) { showTip(idx, ev.clientX, ev.clientY); });
+      hit.addEventListener("pointerleave", hideTip);
+      hit.addEventListener("focus", function () { var r = hit.getBoundingClientRect(); showTip(idx, r.left + r.width / 2, r.top + 20); });
+      hit.addEventListener("blur", hideTip);
+      svg.appendChild(hit);
+    })(k);
+
+    var head = document.getElementById("eHead"), row = document.getElementById("eRow");
+    while (head.children.length > 1) head.removeChild(head.lastChild);
+    while (row.children.length > 1) row.removeChild(row.lastChild);
+    for (var m = 0; m < N; m++) {
+      var th = document.createElement("th"); th.textContent = String(m + 1); head.appendChild(th);
+      var td = document.createElement("td"); td.textContent = st.e[m].toFixed(3); row.appendChild(td);
+    }
+    readout.textContent = "第 " + st.n + " 遍 · 最大误差 " + maxAbs().toFixed(3);
+  }
+
+  function showTip(i, cx, cy) {
+    tip.textContent = "";
+    var r1 = document.createElement("span"); r1.className = "row";
+    var k1 = document.createElement("i"); k1.className = "k1";
+    var b1 = document.createElement("b"); b1.textContent = st.e[i].toFixed(3);
+    r1.appendChild(k1); r1.appendChild(b1); r1.appendChild(document.createTextNode(" 误差"));
+    var who = document.createElement("span"); who.className = "who"; who.textContent = (i + 1) + " 号盒子";
+    tip.appendChild(r1); tip.appendChild(who);
+    tip.hidden = false;
+    var b = box.getBoundingClientRect(), tw = tip.offsetWidth;
+    tip.style.left = Math.min(Math.max(8, cx - b.left + 12), b.width - tw - 8) + "px";
+    tip.style.top = (cy - b.top - 10) + "px";
+  }
+  function hideTip() { tip.hidden = true; }
+  function run(k) { for (var i = 0; i < k; i++) sweep(); render(); }
+  function restart(shape) {
+    st = { e: initial(shape), n: 0, shape: shape };
+    [["eJag", "jag"], ["eHump", "hump"], ["eBoth", "both"]].forEach(function (p) {
+      document.getElementById(p[0]).setAttribute("aria-pressed", p[1] === shape ? "true" : "false");
+    });
+    render();
+  }
+  document.getElementById("eOne").addEventListener("click", function () { run(1); });
+  document.getElementById("eTen").addEventListener("click", function () { run(10); });
+  document.getElementById("eHundred").addEventListener("click", function () { run(100); });
+  document.getElementById("eJag").addEventListener("click", function () { restart("jag"); });
+  document.getElementById("eHump").addEventListener("click", function () { restart("hump"); });
+  document.getElementById("eBoth").addEventListener("click", function () { restart("both"); });
+  restart("both");
+})();
+</script>
+<script src="../assets/quiz.js"></script>
+</body>
+</html>
