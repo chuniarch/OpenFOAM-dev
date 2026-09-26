@@ -1,0 +1,206 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>从一排到一片</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@600;700&family=JetBrains+Mono:wght@400;500&display=swap">
+<link rel="stylesheet" href="../assets/lesson.css">
+</head>
+<body>
+<main class="sheet">
+
+  <header class="masthead">
+    <p class="eyebrow">第 7 课 · 砖块 7 · Diffusion2D.swift</p>
+    <h1>从一排到一片</h1>
+    <p class="lede">一排盒子变成一片。每个盒子的邻居从两个变成四个，其余<strong>什么都不变</strong>。这一课讲清二维要改哪几处，再给两把专门为二维准备的尺子——其中一把不解方程就能说出中心的值。</p>
+    <p class="meta"><span>读约 12 分钟 + 写代码</span><span>前置：第 6 课的程序</span><span>产出：<code>Diffusion2D.swift</code></span></p>
+  </header>
+
+  <section>
+    <h2>一 · 什么变了，什么没变</h2>
+    <div class="scroll">
+    <table>
+      <thead><tr><th></th><th>一维（第 6 课）</th><th>二维（这一课）</th></tr></thead>
+      <tbody>
+        <tr><td>每个盒子的邻居</td><td>左、右</td><td>左、右、下、上</td></tr>
+        <tr><td>墙</td><td>左墙、右墙</td><td>左、右、下、上四面墙</td></tr>
+        <tr><td>存浓度的数组</td><td>一排</td><td>一张表（行 × 列）</td></tr>
+        <tr><td>每个盒子里的判断</td><td>2 个独立判断</td><td>4 个独立判断</td></tr>
+        <tr><td>方程 <code>C_P = 分子 / 分母</code></td><td colspan="2">不变</td></tr>
+        <tr><td>钉死浓度 / 不透水的写法</td><td colspan="2">不变</td></tr>
+        <tr><td>高斯-塞德尔、最大改动、容差</td><td colspan="2">不变</td></tr>
+      </tbody>
+    </table>
+    </div>
+    <p>这就是"增量思维"：守恒律是骨架，维度只决定求和里有几项。<strong>在第 6 课的程序上改，不要从头写。</strong></p>
+    <p>这一课只用<strong>正方形格子</strong>（<code>Δx = Δy</code>），这样四个方向的内部墙权重都是同一个 <code>k</code>。格子不是正方形时，横竖两个方向的 <code>k</code> 不一样，那是以后的事。</p>
+  </section>
+
+  <section>
+    <h2>二 · 下标约定：先定死再写</h2>
+    <pre class="formula"><code>c[j][i]        j = 第几行（y 方向，往上数）    i = 第几列（x 方向，往右数）
+
+左邻  c[j][i−1]        右邻  c[j][i+1]
+下邻  c[j−1][i]        上邻  c[j+1][i]</code></pre>
+    <p>Swift 里一张 <code>n × n</code> 的表，是"一排数组组成的数组"：</p>
+    <pre class="formula"><code>var c = [[Double]](repeating: [Double](repeating: 0.0, count: n), count: n)
+c[2][4] = 1.5          // 第 2 行、第 4 列（都从 0 数）</code></pre>
+    <div class="callout warn">
+      <span class="label">最常见的错</span>
+      <p><strong>求解</strong>时用 <code>c[i][j]</code>、<strong>打印</strong>时用 <code>c[j][i]</code>（或者反过来）。程序照样能跑、不报错，只是打出来的整张图<strong>沿对角线翻了过去</strong>——左右的墙看起来变成了上下的墙。下面的尺子一、尺子三都能抓它。约定只定一次，全程照用。</p>
+    </div>
+    <p>打印时从<strong>最上面一行</strong>（<code>j = n − 1</code>）往下打，屏幕上的"上"才是物理上的"上"。不然数值没错，但你看对称会看反。</p>
+  </section>
+
+  <section>
+    <h2>三 · 边上的盒子、角上的盒子</h2>
+    <p>中间的盒子四面都是邻居。<strong>贴着一面墙的盒子</strong>：三个邻居加一面墙。<strong>角上的盒子</strong>：两个邻居加两面墙。</p>
+    <p>所以每个盒子里是<strong>四个互相独立的判断</strong>：看左、看右、看下、看上，各自决定"是邻居还是墙"。第 6 课强调"两个独立判断，不是二选一"，就是为这一刻准备的——写成一条 <code>if … else if …</code> 链，角上的盒子就只会算到一面墙。</p>
+    <p>例：左下角的盒子（<code>i = 0, j = 0</code>），左墙钉死 10，下墙钉死 0：</p>
+    <pre class="formula"><code>看左：是墙，钉死 10      分子 += 2k × 10      分母 += 2k
+看右：是邻居 c[0][1]     分子 += k × c[0][1]  分母 += k
+看下：是墙，钉死 0       分子 += 2k × 0       分母 += 2k
+看上：是邻居 c[1][0]     分子 += k × c[1][0]  分母 += k
+                                              ─────────
+                                              分母 = 6k</code></pre>
+  </section>
+
+  <section>
+    <h2>四 · 验收尺子</h2>
+    <p>全部用 5 × 5 的网格。</p>
+
+    <h3>尺子一：降维检验 —— 拿第 6 课的输出来对</h3>
+    <p>左墙钉死 10，右墙钉死 0，<strong>上下两面不透水</strong>。上下不透水，就没有任何东西在上下方向流动，每一行都退化成第 6 课的一排：</p>
+    <pre class="formula"><code>每一行都必须是：   9.000   7.000   5.000   3.000   1.000</code></pre>
+    <p>这是二维程序最有力的一把尺子，因为标准答案是<strong>你自己第 6 课的程序算出来的</strong>。</p>
+
+    <h3>尺子二：平场</h3>
+    <p>四面墙都钉死 5 ⇒ 25 个盒子全是 <code>5.000</code>。</p>
+
+    <h3>尺子三：对称</h3>
+    <p>左墙钉死 10，另外三面钉死 0。上下两面墙一模一样，所以解必须<strong>上下镜像对称</strong>：第 0 行等于第 4 行，第 1 行等于第 3 行。把 <code>c[j][i]</code> 写反的程序，会在这里露馅。</p>
+
+    <h3>尺子四：不解方程就知道中心是 2.5</h3>
+    <p>上墙钉死 10，另外三面钉死 0。正中心那个盒子是多少？下面这个推理不用解任何方程：</p>
+    <figure>
+      <svg viewBox="0 0 600 150" role="img" aria-label="四个正方形，分别只有上、右、下、左一面墙钉死 10，四个相加等于四面都钉死 10 的正方形">
+        <g font-size="13" fill="var(--ink)">
+          <rect x="20"  y="30" width="80" height="80" fill="var(--surface)" stroke="var(--ink)" stroke-width="1"></rect>
+          <line x1="20" y1="30" x2="100" y2="30" stroke="var(--accent)" stroke-width="6"></line>
+          <circle cx="60" cy="70" r="4" fill="var(--ink)"></circle>
+          <text x="115" y="76" text-anchor="middle">+</text>
+
+          <rect x="130" y="30" width="80" height="80" fill="var(--surface)" stroke="var(--ink)" stroke-width="1"></rect>
+          <line x1="210" y1="30" x2="210" y2="110" stroke="var(--accent)" stroke-width="6"></line>
+          <circle cx="170" cy="70" r="4" fill="var(--ink)"></circle>
+          <text x="225" y="76" text-anchor="middle">+</text>
+
+          <rect x="240" y="30" width="80" height="80" fill="var(--surface)" stroke="var(--ink)" stroke-width="1"></rect>
+          <line x1="240" y1="110" x2="320" y2="110" stroke="var(--accent)" stroke-width="6"></line>
+          <circle cx="280" cy="70" r="4" fill="var(--ink)"></circle>
+          <text x="335" y="76" text-anchor="middle">+</text>
+
+          <rect x="350" y="30" width="80" height="80" fill="var(--surface)" stroke="var(--ink)" stroke-width="1"></rect>
+          <line x1="350" y1="30" x2="350" y2="110" stroke="var(--accent)" stroke-width="6"></line>
+          <circle cx="390" cy="70" r="4" fill="var(--ink)"></circle>
+          <text x="455" y="76" text-anchor="middle">=</text>
+
+          <rect x="480" y="30" width="80" height="80" fill="var(--surface)" stroke="var(--ink)" stroke-width="1"></rect>
+          <rect x="480" y="30" width="80" height="80" fill="none" stroke="var(--accent)" stroke-width="6"></rect>
+          <circle cx="520" cy="70" r="4" fill="var(--ink)"></circle>
+
+          <text x="60"  y="132" text-anchor="middle" fill="var(--muted)" font-size="12">中心 = x</text>
+          <text x="170" y="132" text-anchor="middle" fill="var(--muted)" font-size="12">中心 = x</text>
+          <text x="280" y="132" text-anchor="middle" fill="var(--muted)" font-size="12">中心 = x</text>
+          <text x="390" y="132" text-anchor="middle" fill="var(--muted)" font-size="12">中心 = x</text>
+          <text x="520" y="132" text-anchor="middle" fill="var(--muted)" font-size="12">中心 = 10</text>
+          <text x="300" y="18" text-anchor="middle" fill="var(--muted)" font-size="12">粗线 = 钉死 10 的墙，细线 = 钉死 0 的墙</text>
+        </g>
+      </svg>
+      <figcaption>四张图各只有一面墙是 10，转一转就互相重合，所以四个中心值一样，都叫 <code>x</code>。</figcaption>
+    </figure>
+    <pre class="formula"><code>① 四张图叠加：每个盒子把四个解对应位置的数加起来，四面墙也各加起来
+   ⇒ 得到"四面都钉死 10"的那道题（每个方程都是一次式，所以加起来仍然成立）
+② 四面都钉死 10，就是平场 ⇒ 处处是 10（尺子二）
+③ 四张图只差一个转角，正中心转了还是正中心 ⇒ 四个中心值相同，都是 x
+④ 所以 4x = 10，x = 2.5</code></pre>
+    <p>你的程序算出来必须是 <code>2.500</code>（中心要真的是一个盒子，所以格子数取奇数，5 × 5 正好）。</p>
+    <p>第①步能成立，靠的是第 6 课那件事的另一面：<code>D</code> 不随浓度变，方程里每一项都只是"某个数 × 某个浓度"，所以两个解加起来还是一个解。</p>
+
+    <h3>尺子五：极值原理</h3>
+    <p>任何一道题里，所有盒子的值都必须落在最低的墙值和最高的墙值之间。超出去一定是 bug。</p>
+  </section>
+
+  <section>
+    <h2>五 · 易错点</h2>
+    <ol>
+      <li><strong><code>c[i][j]</code> 和 <code>c[j][i]</code> 搞反</strong> → 图沿对角线翻转。尺子三能抓。</li>
+      <li><strong>四个判断写成 <code>if … else if</code> 链</strong> → 角上的盒子少算一面墙。尺子四的中心值会偏。</li>
+      <li><strong>从第 0 行开始打印</strong> → 屏幕上下颠倒。数值没错，但看对称会看反。</li>
+      <li><strong>从头重写</strong>而不是在第 6 课的程序上改 → 第 6 课已经修好的错，会在这里再犯一遍。</li>
+    </ol>
+  </section>
+
+  <section>
+    <h2>六 · 写完交什么</h2>
+    <ol>
+      <li><code>Diffusion2D.swift</code> 全文</li>
+      <li>尺子一到五的输出（5 × 5，二维的表从最上面一行往下打印）</li>
+    </ol>
+  </section>
+
+  <section>
+    <h2>练习</h2>
+    <p>这一组比上一组难：有计算，也有换了数字的题。凭理解做，别回头翻。</p>
+    <div class="quiz" id="quiz">
+
+      <div class="q" data-answer="0">
+        <p class="stem">1. 正方形格子。右上角的盒子：右墙钉死，上墙<strong>不透水</strong>。它的分母是几个 <code>k</code>？</p>
+        <div class="opts">
+          <button class="opt" type="button" aria-pressed="false">四个 k</button>
+          <button class="opt" type="button" aria-pressed="false">五个 k</button>
+          <button class="opt" type="button" aria-pressed="false">六个 k</button>
+          <button class="opt" type="button" aria-pressed="false">三个 k</button>
+        </div>
+        <p class="fb" hidden data-fb="左邻 <code>k</code> + 下邻 <code>k</code> + 右墙钉死 <code>2k</code> + 上墙不透水 <code>0</code> = <code>4k</code>。选六个 k，是把不透水的墙也当成了钉死的墙。"></p>
+      </div>
+
+      <div class="q" data-answer="0">
+        <p class="stem">2. 7 × 7 网格。上墙钉死 <strong>8</strong>，另外三面钉死 0。正中心的盒子是多少？</p>
+        <div class="opts">
+          <button class="opt" type="button" aria-pressed="false">2.0</button>
+          <button class="opt" type="button" aria-pressed="false">4.0</button>
+          <button class="opt" type="button" aria-pressed="false">2.7</button>
+          <button class="opt" type="button" aria-pressed="false">8.0</button>
+        </div>
+        <p class="fb" hidden data-fb="四张各只有一面墙是 8 的图叠起来 = 四面都是 8 的平场，处处是 8。四个中心值相同，所以 <code>4x = 8</code>，<code>x = 2</code>。格子数是 5 还是 7 不影响这个推理，只要正中心是一个盒子。选 4.0 是把上下两面墙取了平均；选 2.7 是算成了 8 ÷ 3。"></p>
+      </div>
+
+      <div class="q" data-answer="2">
+        <p class="stem">3. 5 × 5。左墙钉死 10，右墙钉死 0，上下两面不透水。如果<strong>求解部分</strong>一律用了 <code>c[i][j]</code>，而<strong>打印部分</strong>用的是 <code>c[j][i]</code>，打印出的"从下往上第 3 行、从左往右第 1 个"是多少？（正确值是 9）</p>
+        <div class="opts">
+          <button class="opt" type="button" aria-pressed="false">9.0</button>
+          <button class="opt" type="button" aria-pressed="false">7.0</button>
+          <button class="opt" type="button" aria-pressed="false">5.0</button>
+          <button class="opt" type="button" aria-pressed="false">1.0</button>
+        </div>
+        <p class="fb" hidden data-fb="求解和打印用了相反的约定，打印出来的表就沿对角线翻转：原来"每一行都是 9 7 5 3 1"变成了"每一列都是 9 7 5 3 1"，也就是第 0 行全是 9、第 1 行全是 7、第 2 行全是 5……从下往上第 3 行是第 2 行，全是 5。这就是尺子一能一眼抓出这个错的原因：本该每行都一样，结果变成了每列都一样。"></p>
+      </div>
+
+    </div>
+  </section>
+
+  <footer>
+    <p><strong>顺序建议：</strong>这一课可以先读。但写 <code>Diffusion2D.swift</code> 之前，先把第 6 课的程序跑通——尺子一的标准答案要从它那里来。</p>
+    <p><strong>下一步：</strong>两个程序写完发来点评。插页 B 等你量出第 6 课那四个遍数就开始。</p>
+    <p><strong>主要参考：</strong><a href="https://spiral.imperial.ac.uk/handle/10044/1/8335">Jasak (1996)</a> 第 3 章讲扩散项离散的部分：它把"对每个面求和"写成对任意多面体都成立的形式——一维、二维、三维只是面的个数不同，正是这一课第一节那张表的一般版本。</p>
+    <p><strong>卡住了就回到对话里问我。</strong>编译报错把原文整段贴过来。</p>
+  </footer>
+
+</main>
+<script src="../assets/quiz.js"></script>
+</body>
+</html>

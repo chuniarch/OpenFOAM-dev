@@ -20,6 +20,7 @@
 >   - 第 5 课「墙外面是什么」：https://claude.ai/artifact/AhdqZVCqidAKMPhMB8wkX5
 >   - 插页 A「一遍遍逼近」：https://claude.ai/artifact/EHtkpjYb2GdoriZxa1cBHa
 >   - 第 6 课「你的第一个求解器」：https://claude.ai/artifact/2wqwt5aWVayNKfGth45wSv
+>   - 第 7 课「从一排到一片」：https://claude.ai/artifact/4JyDMiyxgvkRemBQBBbMXr
 >   - 仓库里的 `lessons/*.html` 是同一份源文件，共享 `assets/lesson.css` 与 `assets/quiz.js`；
 >     发布页是把这两个组件内联进去后的自包含版本
 > - `crosswalk-stable-fluids.md` 的「解锁」列：只看 ✅ 行，🔒 行走到对应砖块再打开
@@ -176,8 +177,9 @@
    并由此补上「数值扩散」这一课（见砖块 10 末尾）。
 🔄 **当前模式（2026-08-29 起）：按砖块顺序重走一遍。** 每砖讲透、结尾答题才过关。
    本文件从此只当**索引与备忘**，不作为「已掌握」的凭证 —— 写过 ≠ 讲透。
-   **当前位置：砖块 6（写 Diffusion1D.swift）进行中**；砖块 1–5 均已答题通过（砖块 5 含一道镜像迁移题，LR-0008）；
-   插页 A 已发布，练习结果未报（学习者选择先往下走）。
+   **当前位置：第 7 课已发布（可先读）；第 6、7 课的程序都待学习者写**。砖块 1–5 与插页 A 均已通过（LR-0008、LR-0009）。
+   依赖：写 Diffusion2D.swift 之前先跑通 Diffusion1D.swift —— 第 7 课尺子一（降维检验）的标准答案来自第 6 课的程序。
+   插页 B 待学习者量出「情形甲 N = 5/10/20/40 各扫几遍」后开始。
    **重走时插页的拆法与顺序（2026-09-24 调整）**：插页 A = 手算高斯-塞德尔 + 何时停（写程序的最低需要）；
    然后直接进**砖块 6 写第一个程序**；插页 B（为什么越往后越慢、Jacobi 对比）与插页 C（CG / 多重网格）
    放到砖块 6 之后 —— 等学习者亲眼看到程序要扫几十上百遍，再讲"为什么慢"才有抓手。
