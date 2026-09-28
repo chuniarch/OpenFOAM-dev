@@ -1,0 +1,430 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>多重网格</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@600;700&family=JetBrains+Mono:wght@400;500&display=swap">
+<link rel="stylesheet" href="../assets/lesson.css">
+</head>
+<body>
+<main class="sheet">
+
+  <header class="masthead">
+    <p class="eyebrow">插页 C · 插页 B 之后</p>
+    <h1>多重网格</h1>
+    <p class="lede">插页 B 算出：同一个平缓鼓包，80 个盒子时每遍只磨掉 0.15%，5 个盒子时每遍磨掉 33%。这一课用这个差别造一个快得多的解法。80 个盒子、要求误差小于 10⁻⁶ 时，高斯-塞德尔要扫 10138 遍，多重网格只要相当于扫 70 遍的工作量。</p>
+    <p class="meta"><span>约 12 分钟</span><span>前置：插页 B</span><span>一个办法，四个零件</span></p>
+  </header>
+
+  <section>
+    <h2>先看验收尺子</h2>
+    <ol>
+      <li><strong>答案不变。</strong>多重网格和高斯-塞德尔停在同一组数上（情形甲 N = 10：9.5、8.5、…、0.5）。它只改变怎么走到答案，不改变答案。</li>
+      <li><strong>循环数几乎不随 N 变。</strong>N 从 10 加到 320，高斯-塞德尔的遍数涨了一千倍，多重网格的循环数只从 6 涨到 8（第五节的表）。</li>
+      <li><strong>一个循环的工作量不超过细网格扫 10 遍。</strong>第五节推出来。</li>
+    </ol>
+  </section>
+
+  <section>
+    <h2>一 · 起点：格子少，平缓误差就磨得快</h2>
+    <p>插页 B 实测的平缓鼓包，每扫一遍剩下的比例：</p>
+    <div class="scroll">
+    <table>
+      <thead><tr><th>盒子数 N</th><th>每遍剩下</th><th>每遍磨掉</th></tr></thead>
+      <tbody>
+        <tr><td>5</td><td>0.6667</td><td>33%</td></tr>
+        <tr><td>10</td><td>0.9050</td><td>9.5%</td></tr>
+        <tr><td>20</td><td>0.9755</td><td>2.4%</td></tr>
+        <tr><td>40</td><td>0.9938</td><td>0.62%</td></tr>
+        <tr><td>80</td><td>0.9985</td><td>0.15%</td></tr>
+      </tbody>
+    </table>
+    </div>
+    <p>细网格上磨不动的平缓误差，要是能搬到 5 个盒子的网格上，每遍就能磨掉三分之一。可粗网格画不出细节：一个粗盒子只有一个值，两个细盒子之间的锯齿它表示不了。所以要分工：</p>
+    <div class="callout key">
+      <span class="label">分工</span>
+      <p><strong>细网格只管锯齿</strong>：锯齿每遍剩 1/3（插页 B 第三节手算），扫两遍剩 1/9。<strong>粗网格只管平缓</strong>：格子少，磨得快。</p>
+    </div>
+    <p>还缺一样东西。要把误差搬到粗网格上，得先知道误差；可误差 = 现在的值 − 答案，答案正是我们不知道的。</p>
+  </section>
+
+  <section>
+    <h2>二 · 不知道答案，也能知道还差多少：残差</h2>
+    <p>到了答案，每个盒子"进 = 出"，净流入是 0。用现在的值去算，净流入一般不是 0。这个数叫<strong>残差</strong>（英文 residual）：</p>
+    <pre class="formula"><code>残差 R_P = 用现在的值算出的 P 的净流入
+         = Σ w × (C_对面 − C_P)          墙外那缸水用它钉死的值
+
+到了答案，每个盒子的 R_P 都是 0</code></pre>
+    <p>它只用到现在的值，随时能算。它和误差的关系，照插页 B 第二节的办法推：把"现在的值 = 答案 + 误差"代进每一面墙的流量。</p>
+    <pre class="formula"><code>w × (C_对面 − C_P) = w × (答案_对面 − 答案_P)
+                   + w × (误差_对面 − 误差_P)
+
+所有墙加起来：
+R_P = 答案的净流入（= 0） + 误差的净流入      墙外那缸水的误差是 0
+
+所以：  残差 = 误差的净流入</code></pre>
+    <p>把"误差的净流入 = R_P"像第 5 课那样移项，就得到误差的更新式。和浓度的更新式相比，只多了分子里的 <code>− R_P</code>：</p>
+    <pre class="formula"><code>Σ w × (误差_对面 − 误差_P) = R_P
+
+误差_P = [ Σ(w × 误差_对面) − R_P ] / Σw      墙外那缸水按 0 算</code></pre>
+
+    <h3>用数字核对</h3>
+    <p>情形甲 N = 5，初值全 0，扫一遍后是 6.667、3.333、1.667、0.833、0.278。1 号盒子的残差：</p>
+    <pre class="formula"><code>R_1 = 2k × (10 − 6.667) + k × (3.333 − 6.667)
+    = 6.667k − 3.333k = 3.333k</code></pre>
+    <p>五个盒子依次是 3.333k、1.667k、0.833k、0.278k、0。这里碰巧知道答案 9、7、5、3、1，可以直接减出误差：−2.333、−3.667、−3.333、−2.167、−0.722。代进 1 号的更新式：</p>
+    <pre class="formula"><code>误差_1 = [2k × 0 + k × (−3.667) − 3.333k] / 3k
+       = (−3.667 − 3.333) / 3 = −2.333      ✓</code></pre>
+    <p>反过来，只用残差、不看答案，把这条式子扫到不再变化，五个误差逐位都对得上。OpenFOAM 每次求解在日志里打印的 <code>Initial residual</code>（初始残差）就是它：所有盒子残差的绝对值加起来，再除以一个归一化因子。</p>
+  </section>
+
+  <section>
+    <h2>三 · 两个盒子并成一个</h2>
+    <h3>残差直接相加</h3>
+    <p>把相邻的 a、b 两个盒子看成一个大盒子。大盒子的残差是它两面外墙的净流入。</p>
+    <pre class="formula"><code>R_a = (a 外侧的墙流进 a) + (从 b 流进 a)
+R_b = (b 外侧的墙流进 b) + (从 a 流进 b)
+
+中间那道墙是同一股流：从 b 流进 a 的 = −(从 a 流进 b 的)
+
+R_a + R_b = (a 外侧的墙流进) + (b 外侧的墙流进) = 大盒子的残差</code></pre>
+    <p>中间那道墙一进一出抵消，所以粗盒子的残差就是两个细盒子的残差之和，不用重新算。</p>
+
+    <h3>墙的权重减半</h3>
+    <p>第 4 课：<code>w = D × A / d</code>，d 是两个中心的距离。一维里墙的面积 A 不变，粗盒子宽 2Δx：</p>
+    <pre class="formula"><code>粗网格内部墙：中心相距 2Δx  ⇒  w = D·A / (2Δx) = k/2
+粗网格边界墙：中心到墙 Δx   ⇒  w = D·A / Δx     = k
+
+k = 2 × (k/2)：边界墙仍是内部墙的两倍</code></pre>
+    <p>粗网格上要解的，就是第二节那条误差式：权重换成 k/2 和 k，<code>R</code> 用合并后的残差，墙外的误差仍是 0。</p>
+  </section>
+
+  <section>
+    <h2>四 · 一个完整的循环：10 个盒子 → 5 个盒子</h2>
+    <p>情形甲 N = 10，初值全 0，答案是 9.5、8.5、…、0.5（每格降 1）。一个循环五步：</p>
+    <ol class="steps">
+      <li><strong>细网格扫 2 遍。</strong>锯齿没有了，剩下一个光滑的鼓包，最大误差 4.903。</li>
+      <li><strong>算残差，两两相加</strong>，得到 5 个粗盒子的残差。</li>
+      <li><strong>在粗网格上解误差</strong>：第二节的更新式，权重 k/2 和 k，扫 10 遍。5 个盒子每遍剩 2/3，10 遍后剩 (2/3)¹⁰ = 0.017，够用了。</li>
+      <li><strong>搬回来减掉</strong>：每个细盒子减去它所属粗盒子的误差（1、2 号都减第一个粗盒子的，依此类推）。</li>
+      <li><strong>细网格再扫 2 遍。</strong></li>
+    </ol>
+    <p>每一步之后的数（表格可以左右滑动）：</p>
+    <div class="scroll">
+    <table class="cycle" style="white-space: nowrap">
+      <thead><tr><th>盒子</th><th>1</th><th>2</th><th>3</th><th>4</th><th>5</th><th>6</th><th>7</th><th>8</th><th>9</th><th>10</th></tr></thead>
+      <tbody>
+        <tr><td>答案</td><td>9.5</td><td>8.5</td><td>7.5</td><td>6.5</td><td>5.5</td><td>4.5</td><td>3.5</td><td>2.5</td><td>1.5</td><td>0.5</td></tr>
+        <tr><td>① 扫 2 遍后的误差</td><td>−1.722</td><td>−3.778</td><td>−4.722</td><td>−4.903</td><td>−4.597</td><td>−3.997</td><td>−3.222</td><td>−2.348</td><td>−1.420</td><td>−0.473</td></tr>
+        <tr><td>② 残差 ÷ k</td><td>1.389</td><td>1.111</td><td>0.764</td><td>0.486</td><td>0.295</td><td>0.174</td><td>0.100</td><td>0.054</td><td>0.018</td><td>0.000</td></tr>
+        <tr><td>② 两两相加</td><td colspan="2">2.500</td><td colspan="2">1.250</td><td colspan="2">0.469</td><td colspan="2">0.154</td><td colspan="2">0.018</td></tr>
+        <tr><td>③ 粗网格解出的误差</td><td colspan="2">−3.368</td><td colspan="2">−5.143</td><td colspan="2">−4.458</td><td colspan="2">−2.862</td><td colspan="2">−0.966</td></tr>
+        <tr><td>④ 减掉后的误差</td><td>1.646</td><td>−0.410</td><td>0.421</td><td>0.241</td><td>−0.139</td><td>0.462</td><td>−0.360</td><td>0.514</td><td>−0.454</td><td>0.493</td></tr>
+        <tr><td>⑤ 再扫 2 遍后的误差</td><td>0.047</td><td>0.119</td><td>0.073</td><td>0.158</td><td>0.050</td><td>0.139</td><td>0.013</td><td>0.101</td><td>0.082</td><td>0.027</td></tr>
+      </tbody>
+    </table>
+    </div>
+    <p>顺着看最大误差：9.5 → 4.903（第 ① 步）→ 1.646（第 ④ 步）→ 0.158（第 ⑤ 步）。</p>
+    <p>第 ④ 步值得多看一眼：减掉之后，平缓的部分几乎没了，剩下的正负交替，是锯齿。粗网格只是近似，它算出的误差和细网格两格的平均不完全相等（第一格是 −3.368，细网格 1、2 号的平均是 −2.750）；而且同一个粗盒子里的两个细盒子减的是同一个数，会留下台阶。这些都是锯齿，第 ⑤ 步两遍就收拾掉了。</p>
+    <p>工作量：细网格扫 2 + 算残差 1 + 扫 2，共 5 遍（算一遍残差和扫一遍的计算量差不多）；粗网格扫 10 遍 × 5 个盒子 = 50 次，等于细网格 5 遍。合计相当于细网格扫 10 遍。同样花 10 遍，只用高斯-塞德尔，最大误差还有 1.999。</p>
+  </section>
+
+  <section>
+    <h2>五 · 一直并下去：V 循环</h2>
+    <p>N = 80 时，并一次还剩 40 个盒子，上面的平缓误差照样磨得慢。办法一样：在 40 个盒子上也"扫 2 遍、算残差、再并"，一直并到 5 个盒子。</p>
+    <div class="scroll">
+    <table>
+      <thead><tr><th>层</th><th>盒子数</th><th>往下走时</th><th>往上走时</th></tr></thead>
+      <tbody>
+        <tr><td>1</td><td>80</td><td>扫 2 遍，算残差，两两相加</td><td>减掉第 2 层的误差，扫 2 遍</td></tr>
+        <tr><td>2</td><td>40</td><td>同上</td><td>减掉第 3 层的误差，扫 2 遍</td></tr>
+        <tr><td>3</td><td>20</td><td>同上</td><td>减掉第 4 层的误差，扫 2 遍</td></tr>
+        <tr><td>4</td><td>10</td><td>同上</td><td>减掉第 5 层的误差，扫 2 遍</td></tr>
+        <tr><td>5</td><td>5</td><td colspan="2">扫 10 遍，解出误差</td></tr>
+      </tbody>
+    </table>
+    </div>
+    <p>从第 1 层一路往下到第 5 层，再一路往上回到第 1 层，画出来像个 V，所以叫 <strong>V 循环</strong>（英文 V-cycle）。第 2 层往下的每一层，解的都是上一层的误差式，所以都用第二节那条带 <code>− R_P</code> 的更新式，墙外都是 0。</p>
+
+    <h3>一个 V 循环的工作量</h3>
+    <pre class="formula"><code>每层（最粗一层除外）：扫 2 + 残差 1 + 扫 2 = 5 遍
+最粗一层：扫 10 遍 × 5 个盒子
+
+N = 80：5 × (80 + 40 + 20 + 10) + 10 × 5
+      = 5 × 150 + 50 = 800 = 80 × 10      相当于细网格扫 10 遍</code></pre>
+    <p>每往下一层盒子数减半：80 + 40 + 20 + 10 = 150 = 2 × 80 − 10，加起来不到细网格的两倍。代进去：5 × (2N − 10) + 50 = 10N。不管 N 多大，一个 V 循环都相当于细网格扫 10 遍。</p>
+
+    <h3>和高斯-塞德尔比</h3>
+    <p>情形甲，初值全 0。两边都跑到离真答案的最大误差小于 10⁻⁶ 为止，拿已知答案比（插页 B 说过，只看改动会停早：N = 80 时高斯-塞德尔按改动停在 5941 遍，误差还有 6.5 × 10⁻⁴）。</p>
+    <div class="scroll">
+    <table>
+      <thead><tr><th>N</th><th>高斯-塞德尔：扫几遍</th><th>V 循环数</th><th>多重网格：相当于扫几遍</th></tr></thead>
+      <tbody>
+        <tr><td>10</td><td>156</td><td>6</td><td>60</td></tr>
+        <tr><td>20</td><td>629</td><td>6</td><td>60</td></tr>
+        <tr><td>40</td><td>2529</td><td>7</td><td>70</td></tr>
+        <tr><td>80</td><td>10138</td><td>7</td><td>70</td></tr>
+        <tr><td>160</td><td>40595</td><td>7</td><td>70</td></tr>
+        <tr><td>320</td><td>162463</td><td>8</td><td>80</td></tr>
+      </tbody>
+    </table>
+    </div>
+    <p><strong>为什么循环数几乎不随 N 涨</strong>：每一层扫 2 遍只管这一层的锯齿，锯齿每遍剩 1/3，和 N 无关（插页 B 第三节的手算，不管一排多长，每个盒子都是那样算的）；平缓的交给下一层；最后一层永远是 5 个盒子，每遍剩 2/3，也和 N 无关。哪一步都不依赖 N。</p>
+    <p>从 6 涨到 8，是因为第 ④ 步"原样搬回"比较粗糙。搬回时按距离分配，循环数就不涨了：细盒子中心离自己的粗盒子中心 0.5Δx、离隔壁粗盒子中心 1.5Δx，按距离反过来取 1.5/2 = 3/4 和 0.5/2 = 1/4。这样搬，实测 N = 40 到 320 都是 5 个循环。OpenFOAM 默认用的是原样搬回。</p>
+  </section>
+
+  <section>
+    <h2>试一试</h2>
+    <p>40 个盒子，两面墙都是 0，横线就是答案（误差为 0）。两条线从同一个误差出发：蓝线只用高斯-塞德尔，橙线用多重网格。每点一次「花 10 遍的工作量」，蓝线扫 10 遍，橙线做 1 个 V 循环（40 → 20 → 10 → 5，工作量正好也是 10 遍）。页面打开时已经替你点了一次。</p>
+    <div class="viz" id="mgViz">
+      <div class="controls">
+        <button class="ctl" type="button" id="mTen">花 10 遍的工作量</button>
+        <button class="ctl" type="button" id="mFifty">花 50 遍的工作量</button>
+        <span class="group-label">初始误差：</span>
+        <button class="ctl" type="button" id="mHump" aria-pressed="true">鼓包</button>
+        <button class="ctl" type="button" id="mBoth" aria-pressed="false">鼓包 + 锯齿</button>
+      </div>
+      <div class="legend">
+        <span><i class="key-line s1"></i>只用高斯-塞德尔</span>
+        <span><i class="key-line"></i>多重网格（V 循环）</span>
+      </div>
+      <p class="readout" id="mReadout" aria-live="polite"></p>
+      <svg id="mSvg" viewBox="0 0 560 250" role="img" aria-label="40 个盒子的误差：蓝线只用高斯-塞德尔，橙线用多重网格，横线为 0"></svg>
+      <div class="tip" id="mTip" hidden></div>
+      <div class="scroll">
+      <table style="white-space: nowrap">
+        <thead><tr id="mHead"><th>盒子</th></tr></thead>
+        <tbody><tr id="mRowG"><td>高斯-塞德尔</td></tr><tr id="mRowM"><td>多重网格</td></tr></tbody>
+      </table>
+      </div>
+    </div>
+    <p>打开时已经花了 10 遍：蓝线从 1 只降到 0.94，几乎不动（插页 B：N = 40 每遍剩 0.9938，10 遍剩 0.9938¹⁰ ≈ 0.94）；橙线已经降到 0.013。再点四下「花 10 遍的工作量」，工作量到 50 遍时，蓝线还有 0.74，橙线只剩 1.5 × 10⁻⁶。换成「鼓包 + 锯齿」再看一次：锯齿对两边都不是难题，难的是鼓包。</p>
+  </section>
+
+  <section>
+    <h2>六 · OpenFOAM 里的 GAMG</h2>
+    <p>GAMG 的源码说明是 "Geometric agglomerated algebraic multigrid solver"，意思是按几何位置把盒子合并起来的代数多重网格。本课的零件在它的源码（<code>src/OpenFOAM/matrices/lduMatrix/solvers/GAMG/</code>）里都找得到：</p>
+    <div class="scroll">
+    <table>
+      <thead><tr><th>本课</th><th>OpenFOAM</th></tr></thead>
+      <tbody>
+        <tr><td>两两合并盒子</td><td>agglomeration（合并），<code>GAMGAgglomeration</code> 类</td></tr>
+        <tr><td>残差相加</td><td><code>restrictField</code>（往粗网格收）：<code>cf[fineToCoarse[i]] += ff[i]</code></td></tr>
+        <tr><td>误差原样搬回</td><td><code>prolongField</code>（往细网格放）：<code>ff[i] = cf[fineToCoarse[i]]</code></td></tr>
+        <tr><td>每层上的"扫"</td><td><code>fvSolution</code> 里的 <code>smoother</code>（平滑器），如 <code>GaussSeidel</code></td></tr>
+        <tr><td>往上走时扫几遍</td><td><code>nPostSweeps</code>，默认 2</td></tr>
+        <tr><td>往下走时扫几遍</td><td><code>nPreSweeps</code>，默认 0</td></tr>
+        <tr><td>并到多少个盒子为止</td><td><code>minCellsPerProcessor</code>（旧名 <code>nCellsInCoarsestLevel</code>），默认 10</td></tr>
+      </tbody>
+    </table>
+    </div>
+    <p>往下走默认不扫：连着做几个循环时，上一个循环往上走时扫的那 2 遍，正好接在下一个循环往下走之前，起的是同样的作用。</p>
+    <p>有一处细节不同。粗网格上墙的权重，OpenFOAM 不按距离重算，而是把细网格的系数直接相加（<code>GAMGSolverAgglomerateMatrix.C</code>），再用 <code>scaleCorrection</code>（对称矩阵默认打开）把搬回来的误差整体乘一个系数（<code>GAMGSolverScale.C</code>）。想法一样，做法不同。V 循环本体在 <code>GAMGSolverSolve.C</code>。</p>
+  </section>
+
+  <section>
+    <h2>练习</h2>
+    <p>三道都要算，别回头翻。</p>
+    <div class="quiz" id="quiz">
+
+      <div class="q" data-answer="0">
+        <p class="stem">1. 相邻两个细盒子，左边残差 0.9k，右边残差 0.3k；它们中间那道墙上，每秒有 0.5k 的墨从左流到右。把它们并成一个粗盒子，粗盒子的残差是多少？</p>
+        <div class="opts">
+          <button class="opt" type="button" aria-pressed="false">1.2k</button>
+          <button class="opt" type="button" aria-pressed="false">1.7k</button>
+          <button class="opt" type="button" aria-pressed="false">0.7k</button>
+          <button class="opt" type="button" aria-pressed="false">0.6k</button>
+        </div>
+        <p class="fb" hidden data-fb="中间那道墙的 0.5k 在左盒子里算流出、在右盒子里算流进，相加抵消，和它多大无关：0.9k + 0.3k = 1.2k。选 1.7k 或 0.7k，是把中间那股流又加（或减）了一次；选 0.6k 是取了平均，可残差是流量，大盒子收到的是两个小盒子之和。"></p>
+      </div>
+
+      <div class="q" data-answer="0">
+        <p class="stem">2. 一维细网格，内部墙权重 k = 12。并一次之后，粗网格的内部墙和边界墙权重分别是多少？</p>
+        <div class="opts">
+          <button class="opt" type="button" aria-pressed="false">6 和 12</button>
+          <button class="opt" type="button" aria-pressed="false">24 和 48</button>
+          <button class="opt" type="button" aria-pressed="false">6 和 6</button>
+          <button class="opt" type="button" aria-pressed="false">12 和 24</button>
+        </div>
+        <p class="fb" hidden data-fb="w = D·A / d。粗盒子中心相距 2Δx，内部墙 w = k/2 = 6；中心到边界墙 Δx，边界墙 w = k = 12，仍是内部墙的两倍。选 24 和 48，是以为盒子变大墙就更好通，可一维里墙的面积没变，变的只有距离；选 6 和 6，是忘了边界墙只隔半个粗格宽；选 12 和 24，是以为权重不随格宽变。"></p>
+      </div>
+
+      <div class="q" data-answer="0">
+        <p class="stem">3. 二维 64 × 64 的网格，每次把 2 × 2 个盒子并成一个，一直并到 4 × 4。一个 V 循环里，所有层的盒子数加起来，大约是最细那层的多少倍？</p>
+        <div class="opts">
+          <button class="opt" type="button" aria-pressed="false">约 1.33 倍</button>
+          <button class="opt" type="button" aria-pressed="false">约 2 倍</button>
+          <button class="opt" type="button" aria-pressed="false">约 5 倍</button>
+          <button class="opt" type="button" aria-pressed="false">约 4 倍</button>
+        </div>
+        <p class="fb" hidden data-fb="二维每并一次，4 个盒子变 1 个：4096 + 1024 + 256 + 64 + 16 = 5456，是 4096 的 1.33 倍（1 + 1/4 + 1/16 + … 不超过 4/3）。选 2 倍，是套用了一维每次减半；选 5 倍，是把层数当成了倍数；选 4 倍，是把每层缩小的比例当成了总和。"></p>
+      </div>
+
+    </div>
+  </section>
+
+  <footer>
+    <p><strong>下一步：</strong>回到砖块 7，自己写 <code>Diffusion2D.swift</code>（<a href="https://claude.ai/artifact/4JyDMiyxgvkRemBQBBbMXr">第 7 课「从一排到一片」</a>）。共轭梯度（CG）挪到砖块 11 之前，挨着压力方程讲，cavity 的压力用的就是它。</p>
+    <p><strong>主要参考：</strong>Briggs、Henson、McCormick《A Multigrid Tutorial》第 2 版（SIAM，2000），第 2、3 章用的正是这一课的办法：正弦形状的误差、雅可比和高斯-塞德尔的平滑作用、两层网格和 V 循环。OpenFOAM 这边读 <code>GAMGSolverSolve.C</code>。</p>
+    <p><strong>卡住了就回到对话里问我。</strong></p>
+  </footer>
+
+</main>
+
+<script>
+(function () {
+  var N = 40, NS = "http://www.w3.org/2000/svg";
+  var svg = document.getElementById("mSvg"), tip = document.getElementById("mTip");
+  var box = document.getElementById("mgViz"), readout = document.getElementById("mReadout");
+  var X0 = 44, X1 = 548, YT = 14, YB = 214, YMIN = -1, YMAX = 2;
+  var st = { g: [], m: [], work: 0, shape: "hump" };
+
+  function initial(shape) {
+    var e = [];
+    for (var i = 0; i < N; i++) {
+      var hump = Math.sin(Math.PI * (i + 0.5) / N);
+      var jag = (i % 2 === 0 ? 0.5 : -0.5);
+      e.push(shape === "hump" ? hump : hump + jag);
+    }
+    return e;
+  }
+  // n 个盒子的网格扫一遍：两面墙外都是 0，内部墙权重 k = n（取 D·A = 1、总长 1），边界墙 2k。
+  // f[i] 是分子里额外的一项：最细一层是 0，粗网格上是「− 合并后的残差」。
+  function sweep(u, f, n) {
+    var k = n;
+    for (var i = 0; i < n; i++) {
+      var num = f[i], den = 0;
+      if (i > 0) { num += k * u[i - 1]; den += k; } else { den += 2 * k; }
+      if (i < n - 1) { num += k * u[i + 1]; den += k; } else { den += 2 * k; }
+      u[i] = num / den;
+    }
+  }
+  // 残差 = 用现在的值算出的净流入（加上 f）
+  function residual(u, f, n) {
+    var k = n, R = [];
+    for (var i = 0; i < n; i++) {
+      var r = f[i];
+      r += (i > 0) ? k * (u[i - 1] - u[i]) : 2 * k * (0 - u[i]);
+      r += (i < n - 1) ? k * (u[i + 1] - u[i]) : 2 * k * (0 - u[i]);
+      R.push(r);
+    }
+    return R;
+  }
+  // 一个 V 循环：扫 2 遍 → 残差两两相加 → 粗网格解误差 → 原样搬回减掉 → 再扫 2 遍
+  function vcycle(u, f, n) {
+    if (n <= 5) { for (var s = 0; s < 10; s++) sweep(u, f, n); return; }
+    sweep(u, f, n); sweep(u, f, n);
+    var R = residual(u, f, n), nc = n / 2, fc = [], ec = [];
+    for (var J = 0; J < nc; J++) { fc.push(-(R[2 * J] + R[2 * J + 1])); ec.push(0); }
+    vcycle(ec, fc, nc);                     // 误差满足：误差的净流入 = 残差
+    for (var j = 0; j < nc; j++) { u[2 * j] -= ec[j]; u[2 * j + 1] -= ec[j]; }
+    sweep(u, f, n); sweep(u, f, n);
+  }
+  function spend(times) {
+    var zero = []; for (var i = 0; i < N; i++) zero.push(0);
+    for (var t = 0; t < times; t++) {
+      for (var s = 0; s < 10; s++) sweep(st.g, zero, N);
+      vcycle(st.m, zero, N);
+      st.work += 10;
+    }
+    render();
+  }
+
+  function x(i) { return X0 + (X1 - X0) * (i + 0.5) / N; }
+  function y(v) { v = Math.max(YMIN, Math.min(YMAX, v)); return YB - (v - YMIN) / (YMAX - YMIN) * (YB - YT); }
+  function el(name, attrs, text) {
+    var e = document.createElementNS(NS, name);
+    for (var k in attrs) e.setAttribute(k, attrs[k]);
+    if (text != null) e.textContent = text;
+    return e;
+  }
+  function maxAbs(a) { var m = 0; for (var i = 0; i < a.length; i++) m = Math.max(m, Math.abs(a[i])); return m; }
+  function fmt(v) {
+    var a = Math.abs(v), t = a === 0 ? "0" : a >= 0.001 ? v.toFixed(3) : v.toExponential(1);
+    return t.replace(/-/g, "−");            // 和正文一样用减号
+  }
+  function path(a) {
+    var d = "";
+    for (var i = 0; i < N; i++) d += (i === 0 ? "M" : " L") + x(i).toFixed(1) + "," + y(a[i]).toFixed(1);
+    return d;
+  }
+
+  function render() {
+    hideTip();
+    while (svg.firstChild) svg.removeChild(svg.firstChild);
+    [-1, 0, 1, 2].forEach(function (t) {
+      svg.appendChild(el("line", { x1: X0, x2: X1, y1: y(t), y2: y(t),
+        stroke: t === 0 ? "var(--ink)" : "var(--rule)", "stroke-width": t === 0 ? 1.5 : 1 }));
+      svg.appendChild(el("text", { x: X0 - 8, y: y(t) + 4, "text-anchor": "end", "font-size": 11, fill: "var(--muted)" }, String(t)));
+    });
+    svg.appendChild(el("path", { d: path(st.g), fill: "none", stroke: "var(--series-1)", "stroke-width": 2, "stroke-linejoin": "round", "stroke-linecap": "round" }));
+    svg.appendChild(el("path", { d: path(st.m), fill: "none", stroke: "var(--series-2)", "stroke-width": 2, "stroke-linejoin": "round", "stroke-linecap": "round" }));
+    var mid = 20, yg = y(st.g[mid]), ym = y(st.m[mid]);
+    svg.appendChild(el("text", { x: x(mid), y: yg - 10, "text-anchor": "middle", "font-size": 11, fill: "var(--ink)" }, "高斯-塞德尔"));
+    var below = Math.abs(yg - ym) < 26;
+    svg.appendChild(el("text", { x: x(mid), y: below ? ym + 20 : ym - 10, "text-anchor": "middle", "font-size": 11, fill: "var(--ink)" }, "多重网格"));
+    [0, 9, 19, 29, 39].forEach(function (i) {
+      svg.appendChild(el("text", { x: x(i), y: YB + 18, "text-anchor": "middle", "font-size": 11, fill: "var(--muted)" }, String(i + 1)));
+    });
+    svg.appendChild(el("text", { x: (X0 + X1) / 2, y: YB + 34, "text-anchor": "middle", "font-size": 11, fill: "var(--muted)" }, "盒子编号"));
+    var band = (X1 - X0) / N;
+    for (var k = 0; k < N; k++) (function (idx) {
+      var hit = el("rect", { x: X0 + band * idx, y: YT, width: band, height: YB - YT, "class": "hit", tabindex: 0,
+                             "aria-label": (idx + 1) + " 号盒子，高斯-塞德尔误差 " + fmt(st.g[idx]) + "，多重网格误差 " + fmt(st.m[idx]) });
+      hit.addEventListener("pointermove", function (ev) { showTip(idx, ev.clientX, ev.clientY); });
+      hit.addEventListener("pointerleave", hideTip);
+      hit.addEventListener("focus", function () { var r = hit.getBoundingClientRect(); showTip(idx, r.left + r.width / 2, r.top + 20); });
+      hit.addEventListener("blur", hideTip);
+      svg.appendChild(hit);
+    })(k);
+
+    var head = document.getElementById("mHead"), rg = document.getElementById("mRowG"), rm = document.getElementById("mRowM");
+    [head, rg, rm].forEach(function (r) { while (r.children.length > 1) r.removeChild(r.lastChild); });
+    for (var m = 0; m < N; m++) {
+      var th = document.createElement("th"); th.textContent = String(m + 1); head.appendChild(th);
+      var t1 = document.createElement("td"); t1.textContent = fmt(st.g[m]); rg.appendChild(t1);
+      var t2 = document.createElement("td"); t2.textContent = fmt(st.m[m]); rm.appendChild(t2);
+    }
+    readout.textContent = "工作量：相当于细网格扫了 " + st.work + " 遍 · 最大误差：高斯-塞德尔 " +
+      fmt(maxAbs(st.g)) + "，多重网格 " + fmt(maxAbs(st.m));
+  }
+
+  function row(cls, value, label) {
+    var r = document.createElement("span"); r.className = "row";
+    var k = document.createElement("i"); k.className = cls;
+    var b = document.createElement("b"); b.textContent = value;
+    r.appendChild(k); r.appendChild(b); r.appendChild(document.createTextNode(" " + label));
+    return r;
+  }
+  function showTip(i, cx, cy) {
+    tip.textContent = "";
+    tip.appendChild(row("k1", fmt(st.g[i]), "高斯-塞德尔"));
+    tip.appendChild(row("k2", fmt(st.m[i]), "多重网格"));
+    var who = document.createElement("span"); who.className = "who"; who.textContent = (i + 1) + " 号盒子";
+    tip.appendChild(who);
+    tip.hidden = false;
+    var b = box.getBoundingClientRect(), tw = tip.offsetWidth;
+    tip.style.left = Math.min(Math.max(8, cx - b.left + 12), b.width - tw - 8) + "px";
+    tip.style.top = (cy - b.top - 10) + "px";
+  }
+  function hideTip() { tip.hidden = true; }
+  function restart(shape) {
+    st = { g: initial(shape), m: initial(shape), work: 0, shape: shape };
+    [["mHump", "hump"], ["mBoth", "both"]].forEach(function (p) {
+      document.getElementById(p[0]).setAttribute("aria-pressed", p[1] === shape ? "true" : "false");
+    });
+    spend(1);
+  }
+  document.getElementById("mTen").addEventListener("click", function () { spend(1); });
+  document.getElementById("mFifty").addEventListener("click", function () { spend(5); });
+  document.getElementById("mHump").addEventListener("click", function () { restart("hump"); });
+  document.getElementById("mBoth").addEventListener("click", function () { restart("both"); });
+  restart("hump");
+})();
+</script>
+<script src="../assets/quiz.js"></script>
+</body>
+</html>

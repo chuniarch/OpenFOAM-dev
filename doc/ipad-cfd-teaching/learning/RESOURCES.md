@@ -18,6 +18,11 @@
   用于：写 Swift 求解器时查语法。第 6 课只需要 **The Basics**（常量变量、类型、数组）与 **Enumerations**
   （带值的 enum 与 switch）两章。⚠ 本会话网络策略对 docs.swift.org 返回 403，链接未能核实，按官方长期使用的根地址记录。
 
+- [Briggs, Henson & McCormick (2000), *A Multigrid Tutorial*, 2nd ed.（SIAM）](https://epubs.siam.org/doi/book/10.1137/1.9780898719505)
+  多重网格最常用的入门书，篇幅短，用一维模型问题从头讲起。
+  用于：插页 B、C。第 2 章用正弦形状的误差分析雅可比和高斯-塞德尔，第 3 章讲两层网格与 V 循环。
+  ⚠ 本会话网络连不上 epubs.siam.org，链接未能核实，按 SIAM 的 DOI 记录。
+
 - [OpenFOAM v13 User Guide（CFD Direct，免费在线）](https://doc.cfd.direct/openfoam/user-guide-v13/contents)
   本仓库 `OpenFOAM-dev` 属于 OpenFOAM Foundation（openfoam.org）这一支，对应的就是这份指南。
   用于：`fvSchemes` / `fvSolution` 里每个关键词的含义、cavity 算例的输入文件。

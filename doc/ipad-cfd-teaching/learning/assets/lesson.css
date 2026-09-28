@@ -351,6 +351,7 @@ button.opt[disabled].right { opacity: 1; }
   content: ""; position: absolute; left: 5px; top: -4px; width: 8px; height: 8px; border-radius: 50%;
   background: var(--series-2); box-shadow: 0 0 0 2px var(--surface);
 }
+.viz .key-line.s1, .viz .key-line.s1::after { background: var(--series-1); }
 .viz .readout { font-size: var(--step--1); color: var(--ink); font-variant-numeric: tabular-nums; min-height: 1.6em; }
 .viz .readout .done { color: var(--good); font-weight: 600; }
 .viz svg { width: 100%; height: auto; display: block; overflow: visible; }
