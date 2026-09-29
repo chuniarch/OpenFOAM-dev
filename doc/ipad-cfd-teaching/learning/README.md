@@ -203,17 +203,14 @@
 
 ## 新对话开场白（把下面整段复制到新对话即可启动）
 
+交接说明见 `HANDOFF.md`（截至插页 C，2026-09-29）：已讲内容逐条写全条件、学习者卡在哪、挂着的检查题、下一步。
+
 ```
 先执行：git fetch origin && git checkout -B openfoam-learning/main origin/openfoam-learning/main
-本会话请直接在该分支上工作并推送，不要新建 claude/* 分支。
+本会话直接在该分支上工作并推送，不要新建 claude/* 分支。
 
-读取 doc/ipad-cfd-teaching/learning/README.md —— 这是本条 CFD 学习阶梯的总索引
-（砖块 1–11：从两个盒子间的墨水扩散，一路搭到 icoFoam 的 cavity）。
-配套：diffusion-notes.md（扩散专题公式与推导）、code/（各砖 Swift 代码）、
-context/（此前几次会话的完整上下文，含 OpenFOAM 架构导览与 icoFoam+cavity 物理预备）。
-
-我已经走到砖块 ___。请先确认我对上一砖的理解，再往下讲，不要从头重讲。
-教学风格：先大白话讲"这段在干嘛/为什么"，一次一小块，我能复述才算讲到位；
-每砖都要有可运行代码和物理验收尺子。
-新产出一律落盘到本分支并 commit/push。
+先读 doc/ipad-cfd-teaching/learning/HANDOFF.md（交接说明，截至插页 C），再读同目录的 NOTES.md（硬约束）。
+我正在读插页 C 第二节（残差和误差），上一个对话最后一次问答和挂着的检查题都在 HANDOFF.md 第四节。
+先问我第四节那五条回答还有哪里不通，不要从头重讲。
+提到之前的任何内容，把条件、做法、公式当场写全；表格里的数要给算式。
 ```

@@ -73,7 +73,7 @@ ea8dc1d9  交接文档收口
 | 会话 | Session ID | 说明 |
 |---|---|---|
 | Phase 0 — 架构解读 | `session_014cezmDEefazTL8T43SgC6T` | 已归档。对流-扩散分析、离散误差 vs 迭代误差、二阶收敛验证、三条可靠性判据。分支 `claude/wizardly-mayer-2AkHA` 未推送 |
-| 有限体积法 CFD 求解器学习 | `session_015Jk9J73ix6BRyxs31T8ExB` | **改名后新组**里的会话。正在重走本仓库 `learning/README.md` 的砖块 1（两个盒子之间墨水怎么流），当前等你回答。分支 `claude/fvm-cfd-solver-learning-v9280l` 未推送 |
+| 有限体积法 CFD 求解器学习 | `session_015Jk9J73ix6BRyxs31T8ExB` | **改名后新组**里的会话。正在重走本仓库 `learning/README.md` 的砖块 1（两个盒子之间墨水怎么流），当前等你回答。分支 `claude/fvm-cfd-solver-learning-v9280l` 未推送 〔2026-09-29 更新：重走到插页 C（多重网格）；交接说明 `learning/HANDOFF.md`，准备新开对话继续；产出一律在 `openfoam-learning/main`〕 |
 
 ## 归档分支
 
