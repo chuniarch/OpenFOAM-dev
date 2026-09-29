@@ -13,80 +13,153 @@
 <main class="sheet">
 
   <header class="masthead">
-    <p class="eyebrow">第 7 课 · 砖块 7 · Diffusion2D.swift</p>
+    <p class="eyebrow">第 7 课 · 砖块 7 · Diffusion2D.ts</p>
     <h1>从一排到一片</h1>
-    <p class="lede">一排盒子变成一片。每个盒子的邻居从两个变成四个，其余<strong>什么都不变</strong>。这一课讲清二维要改哪几处，再给两把专门为二维准备的尺子——其中一把不解方程就能说出中心的值。</p>
-    <p class="meta"><span>读约 12 分钟 + 写代码</span><span>前置：第 6 课的程序</span><span>产出：<code>Diffusion2D.swift</code></span></p>
+    <p class="lede">一排盒子变成一片。每个盒子的邻居从两个变成四个，算法<strong>一点不变</strong>。这一课讲二维要改哪几处、TypeScript 里怎么建一张表，再给五把尺子——其中一把不解方程就能说出中心的值。</p>
+    <p class="meta"><span>读约 15 分钟 + 写代码</span><span>前置：第 6 课的一维程序（第八节折叠了一份）</span><span>产出：<code>Diffusion2D.ts</code></span></p>
   </header>
 
   <section>
-    <h2>一 · 什么变了，什么没变</h2>
+    <h2>一 · 先定验收尺子</h2>
+    <p>五把尺子共同的条件：</p>
+    <pre class="formula"><code>5 × 5 个盒子，正方形格子（Δx = Δy）
+内部墙权重 k（左右、上下都一样）
+边界墙权重 2k（盒子中心到边界墙只有半格：D × A / (Δx/2) = 2k）
+初值全 0；高斯-塞德尔，最大改动 &lt; 1e-6 就停</code></pre>
+    <div class="scroll">
+    <table>
+      <thead><tr><th>#</th><th>四面墙</th><th>期望输出</th><th>抓什么错</th><th>我这边扫了几遍</th></tr></thead>
+      <tbody>
+        <tr><td>一</td><td>左钉死 10，右钉死 0，下、上<strong>不透水</strong></td><td>每一行都是 <code>9.000 7.000 5.000 3.000 1.000</code></td><td>方程、2k、不透水的墙</td><td>66</td></tr>
+        <tr><td>二</td><td>四面都钉死 5</td><td>25 个全是 <code>5.000</code></td><td>分母漏加</td><td>39</td></tr>
+        <tr><td>三</td><td>左钉死 10，另外三面钉死 0</td><td>第 0 行 = 第 4 行，第 1 行 = 第 3 行；正中心 <code>2.500</code></td><td>打印时行列用反</td><td>36</td></tr>
+        <tr><td>四</td><td>上钉死 10，另外三面钉死 0</td><td>正中心 <code>c[2][2] = 2.500</code>；每一行左右对称</td><td>角上的盒子少算一面墙</td><td>38</td></tr>
+        <tr><td>五</td><td>上面每一道</td><td>每个值都在最低和最高的墙值之间</td><td>符号、权重写错</td><td>—</td></tr>
+      </tbody>
+    </table>
+    </div>
+    <p>遍数是我这边的程序跑出来的，只作对照，差一两遍不算错（取决于"是否该停"的判断写在哪）。我按一行一行扫（外层 <code>j</code>、内层 <code>i</code>），也试过一列一列扫，这四道题的遍数都一样。</p>
+
+    <h3>尺子一：为什么每一行都是 9、7、5、3、1</h3>
+    <p>先看一维那道题：5 个盒子排成一排，左墙钉死 10，右墙钉死 0，内部墙 <code>k</code>，边界墙 <code>2k</code>。把答案 9、7、5、3、1 代回更新式 <code>C_P = 分子 / 分母</code>，每个盒子都算回自己：</p>
+    <pre class="formula"><code>1 号：(2k × 10 + k × 7) / (2k + k)  = 27k / 3k = 9
+2 号：(k × 9 + k × 5) / (k + k)     = 14k / 2k = 7
+3 号：(k × 7 + k × 3) / (k + k)     = 10k / 2k = 5
+4 号：(k × 5 + k × 1) / (k + k)     =  6k / 2k = 3
+5 号：(k × 3 + 2k × 0) / (k + 2k)   =  3k / 3k = 1</code></pre>
+    <p>二维里让每一行都等于这一排。逐个盒子算净流入（每一面墙的 <code>w × (对面的值 − 自己的值)</code> 加起来）：</p>
+    <ul>
+      <li><strong>上下两面</strong>：上下邻居和自己在同一列，值相同，流进量 <code>k × (C_上 − C_P) = 0</code>、<code>k × (C_下 − C_P) = 0</code>。最上面、最下面一行贴着的是不透水的墙，那一面本来就不写。</li>
+      <li><strong>左右两面</strong>：和一维那一排里同一个位置的盒子一模一样，上面五行算式说明它们加起来是 0。</li>
+    </ul>
+    <p>所以 25 个盒子的净流入都是 0。重算一个盒子时，<code>新值 − 现在的值 = 净流入 ÷ 分母</code>（插页 C 推过：<code>Σ(w × C_对面) / Σw − C_P = Σ w × (C_对面 − C_P) / Σw</code>），净流入是 0，改动就是 0。每个盒子都算回自己，高斯-塞德尔就停在这里。</p>
+    <p>答案和一维一样，遍数却多（一维是 37 遍）。第一遍的第一个盒子就走得不一样：</p>
+    <pre class="formula"><code>二维 c[0][0]：左墙钉死 10（2k），右邻 c[0][1] = 0（k），上邻 c[1][0] = 0（k），下墙不透水（不写）
+             (2k × 10 + k × 0 + k × 0) / (2k + k + k) = 20k / 4k = 5.000
+一维 1 号：   (2k × 10 + k × 0) / (2k + k)           = 20k / 3k = 6.667</code></pre>
+    <p>扫第 0 行时，上面的第 1 行还是初值 0，它通过那道内部墙把第 0 行往下拉；一维没有这一项。到了答案，上下相等，这一项才变成 0。</p>
+
+    <h3>尺子二：为什么全是 5</h3>
+    <p>每个盒子都代 5：每一面墙的流进量都是 <code>w × (5 − 5) = 0</code>，净流入 0，重算还是 5。</p>
+
+    <h3>尺子三：为什么上下对称</h3>
+    <p>把整张图上下翻过来：下墙和上墙对调，两面都是钉死 0，没变；左墙、右墙翻过来还是它们自己。题目一点没变，答案也就不能变，所以翻过来的表必须和原来的表相等：第 0 行 = 第 4 行，第 1 行 = 第 3 行。</p>
+    <p>"答案不能变"要求这组方程只有一组解。理由：假如有两组解，把它们逐格相减，得到的差也满足同样的 25 个方程，只是每面钉死的墙都变成了 0（10 − 10 = 0，0 − 0 = 0；插页 B 推误差的方程时就是这样两式相减的）。按下面尺子五的极值原理，这个差夹在最低墙值 0 和最高墙值 0 之间，只能处处是 0，两组解其实是同一组。</p>
+    <p>正中心的 2.500 见第五节：这道题是尺子四的图转了 90°。</p>
+
+    <h3>尺子四：中心 2.500</h3>
+    <p>推导在第五节。"每一行左右对称"的理由和尺子三一样：左右翻过来，左墙、右墙都是钉死 0，题目不变。</p>
+
+    <h3>尺子五：极值原理</h3>
+    <p>更新式 <code>C_P = Σ(w × 对面的值) / Σw</code>，就是一个盒子四面的值（邻居的值，或钉死的墙值）按权重取的平均；不透水的墙不参加。平均值不会比被平均的数里最大的那个还大。如果全场最大的值落在某个盒子上，它四面的值都得和它一样大，否则平均不到这么大；这样一格一格传出去，总会传到一个贴着钉死墙的盒子，那面墙的值也得和它一样大。所以盒子里的最大值不会超过最高的墙值，最小值也不会低于最低的墙值。超出去一定是 bug。</p>
+  </section>
+
+  <section>
+    <h2>二 · 一维程序做了什么，二维改哪里</h2>
+    <p>第 6 课的一维程序（全文折叠在第八节）里，每个盒子做的事：</p>
+    <pre class="formula"><code>分子 ← 0，分母 ← 0
+看左边：是邻居          → 分子 += k × C_邻居，分母 += k
+        是钉死浓度的墙  → 分子 += 2k × C_墙， 分母 += 2k
+        是不透水的墙    → 什么都不加
+看右边：同样三种情况，和看左边是两个独立的判断
+新值 ← 分子 / 分母</code></pre>
+    <p>外面套高斯-塞德尔：初值全 0；从第一个盒子到最后一个，逐个算新值，算完<strong>立刻写回</strong>数组；记下这一遍最大的 <code>|新值 − 旧值|</code>；小于 <code>1e-6</code> 就停，否则再扫一遍；最多扫 100000 遍（保险丝：写错时不至于永远转下去）。</p>
     <div class="scroll">
     <table>
       <thead><tr><th></th><th>一维（第 6 课）</th><th>二维（这一课）</th></tr></thead>
       <tbody>
         <tr><td>每个盒子的邻居</td><td>左、右</td><td>左、右、下、上</td></tr>
         <tr><td>墙</td><td>左墙、右墙</td><td>左、右、下、上四面墙</td></tr>
-        <tr><td>存浓度的数组</td><td>一排</td><td>一张表（行 × 列）</td></tr>
+        <tr><td>存浓度的数组</td><td>一排 <code>number[]</code></td><td>一张表 <code>number[][]</code>（行 × 列）</td></tr>
         <tr><td>每个盒子里的判断</td><td>2 个独立判断</td><td>4 个独立判断</td></tr>
-        <tr><td>方程 <code>C_P = 分子 / 分母</code></td><td colspan="2">不变</td></tr>
-        <tr><td>钉死浓度 / 不透水的写法</td><td colspan="2">不变</td></tr>
-        <tr><td>高斯-塞德尔、最大改动、容差</td><td colspan="2">不变</td></tr>
+        <tr><td>每个判断里的三种情况</td><td colspan="2">不变</td></tr>
+        <tr><td>高斯-塞德尔、最大改动、容差、保险丝</td><td colspan="2">不变</td></tr>
       </tbody>
     </table>
     </div>
-    <p>这就是"增量思维"：守恒律是骨架，维度只决定求和里有几项。<strong>在第 6 课的程序上改，不要从头写。</strong></p>
-    <p>这一课只用<strong>正方形格子</strong>（<code>Δx = Δy</code>），这样四个方向的内部墙权重都是同一个 <code>k</code>。格子不是正方形时，横竖两个方向的 <code>k</code> 不一样，那是以后的事。</p>
+    <p>守恒律是骨架，维度只决定求和里有几项。<strong>从第八节那份一维程序改起，不要从头写。</strong></p>
+    <p>这一课只用<strong>正方形格子</strong>（<code>Δx = Δy</code>），这样四个方向的内部墙权重都是同一个 <code>k = D × A / Δx</code>。格子不是正方形时，横竖两个方向的 <code>k</code> 不一样，那是以后的事。</p>
   </section>
 
   <section>
-    <h2>二 · 下标约定：先定死再写</h2>
+    <h2>三 · 下标约定和一张表</h2>
     <pre class="formula"><code>c[j][i]        j = 第几行（y 方向，往上数）    i = 第几列（x 方向，往右数）
 
 左邻  c[j][i−1]        右邻  c[j][i+1]
 下邻  c[j−1][i]        上邻  c[j+1][i]</code></pre>
-    <p>Swift 里一张 <code>n × n</code> 的表，是"一排数组组成的数组"：</p>
-    <pre class="formula"><code>var c = [[Double]](repeating: [Double](repeating: 0.0, count: n), count: n)
-c[2][4] = 1.5          // 第 2 行、第 4 列（都从 0 数）</code></pre>
+    <p>TypeScript 里一张 <code>n × n</code> 的表，是"一排数组组成的数组"：</p>
+    <pre class="formula"><code>const n = 5;
+const c: number[][] = Array.from({ length: n }, () =&gt; new Array(n).fill(0));
+c[2][4] = 1.5;          // 第 2 行、第 4 列（都从 0 数）</code></pre>
+    <p><code>Array.from({ length: n }, 函数)</code> 把后面那个函数调用 <code>n</code> 次，每次返回的新数组当一行，所以 <code>n</code> 行是 <code>n</code> 个各自独立的数组。</p>
     <div class="callout warn">
-      <span class="label">最常见的错</span>
-      <p><strong>求解</strong>时用 <code>c[i][j]</code>、<strong>打印</strong>时用 <code>c[j][i]</code>（或者反过来）。程序照样能跑、不报错，只是打出来的整张图<strong>沿对角线翻了过去</strong>——左右的墙看起来变成了上下的墙。下面的尺子一、尺子三都能抓它。约定只定一次，全程照用。</p>
+      <span class="label">看起来一样，其实是同一行</span>
+      <p>另一种写法少打几个字，但是错的。我在这边跑过：</p>
+      <pre class="formula"><code>const bad: number[][] = new Array(3).fill(new Array(3).fill(0));
+bad[0][0] = 1;
+console.log(bad.map((row) =&gt; row.join(" ")).join("\n"));
+// 打印出来：
+// 1 0 0
+// 1 0 0
+// 1 0 0        ← 只改了第 0 行，三行都变了</code></pre>
+      <p><code>fill(x)</code> 把<strong>同一个</strong> <code>x</code> 放进每一格。<code>x</code> 是一个数组时，每一行拿到的都是它本身，不是复印件，三行其实是同一个数组。TypeScript 不会报错，类型照样是 <code>number[][]</code>。建表只用上面 <code>Array.from</code> 那一种写法。</p>
     </div>
-    <p>打印时从<strong>最上面一行</strong>（<code>j = n − 1</code>）往下打，屏幕上的"上"才是物理上的"上"。不然数值没错，但你看对称会看反。</p>
+    <div class="callout warn">
+      <span class="label">最常见的错：行列用反</span>
+      <p><strong>求解</strong>时用 <code>c[i][j]</code>、<strong>打印</strong>时用 <code>c[j][i]</code>（或者反过来）。程序照样能跑、不报错，只是打出来的整张表<strong>沿对角线翻了过去</strong>——左右的墙看起来变成了上下的墙。尺子三能抓它。约定只定一次，全程照用。</p>
+    </div>
+    <p>打印时从<strong>最上面一行</strong>往下打：<code>for (let j = n - 1; j &gt;= 0; j--)</code>。这样屏幕上的"上"才是物理上的"上"；不然数值没错，但你看对称会看反。</p>
   </section>
 
   <section>
-    <h2>三 · 边上的盒子、角上的盒子</h2>
+    <h2>四 · 边上的盒子、角上的盒子</h2>
     <p>中间的盒子四面都是邻居。<strong>贴着一面墙的盒子</strong>：三个邻居加一面墙。<strong>角上的盒子</strong>：两个邻居加两面墙。</p>
-    <p>所以每个盒子里是<strong>四个互相独立的判断</strong>：看左、看右、看下、看上，各自决定"是邻居还是墙"。第 6 课强调"两个独立判断，不是二选一"，就是为这一刻准备的——写成一条 <code>if … else if …</code> 链，角上的盒子就只会算到一面墙。</p>
-    <p>例：左下角的盒子（<code>i = 0, j = 0</code>），左墙钉死 10，下墙钉死 0：</p>
+    <p>所以每个盒子里是<strong>四个互相独立的判断</strong>：看左、看右、看下、看上，各自决定"是邻居还是墙"。一维程序里"看左边""看右边"就是两个分开的 <code>if</code>，不是 <code>if … else</code>：只有 1 个盒子、左墙钉死 10、右墙钉死 0 时，它两边都是墙，两个判断都要走到，才得到 <code>(2k × 10 + 2k × 0) / (2k + 2k) = 5</code>。</p>
+    <p>例：左下角的盒子 <code>c[0][0]</code>，左墙钉死 10，下墙钉死 0：</p>
     <pre class="formula"><code>看左：是墙，钉死 10      分子 += 2k × 10      分母 += 2k
 看右：是邻居 c[0][1]     分子 += k × c[0][1]  分母 += k
 看下：是墙，钉死 0       分子 += 2k × 0       分母 += 2k
 看上：是邻居 c[1][0]     分子 += k × c[1][0]  分母 += k
                                               ─────────
                                               分母 = 6k</code></pre>
+    <p>容易写出来的错法，是按"这个盒子在哪条边上"写成一条 <code>if … else if</code> 链：</p>
+    <pre class="formula"><code>if (i === 0)          { 左墙 + 右邻 + 上下有邻居就算邻居 }
+else if (i === n − 1) { 右墙 + 左邻 + 上下有邻居就算邻居 }
+else if (j === 0)     { 下墙 + 左右邻居 + 上邻 }
+else if (j === n − 1) { 上墙 + 左右邻居 + 下邻 }
+else                  { 四个邻居 }</code></pre>
+    <p>左下角 <code>c[0][0]</code> 进了第一个分支，就不会再进第三个，下墙那一项漏了；另外三个角也各漏掉上墙或下墙。我照这个写法跑过尺子四：中心是 <code>2.182</code>，不是 <code>2.500</code>。</p>
   </section>
 
   <section>
-    <h2>四 · 验收尺子</h2>
-    <p>全部用 5 × 5 的网格。</p>
-
-    <h3>尺子一：降维检验 —— 拿第 6 课的输出来对</h3>
-    <p>左墙钉死 10，右墙钉死 0，<strong>上下两面不透水</strong>。上下不透水，就没有任何东西在上下方向流动，每一行都退化成第 6 课的一排：</p>
-    <pre class="formula"><code>每一行都必须是：   9.000   7.000   5.000   3.000   1.000</code></pre>
-    <p>这是二维程序最有力的一把尺子，因为标准答案是<strong>你自己第 6 课的程序算出来的</strong>。</p>
-
-    <h3>尺子二：平场</h3>
-    <p>四面墙都钉死 5 ⇒ 25 个盒子全是 <code>5.000</code>。</p>
-
-    <h3>尺子三：对称</h3>
-    <p>左墙钉死 10，另外三面钉死 0。上下两面墙一模一样，所以解必须<strong>上下镜像对称</strong>：第 0 行等于第 4 行，第 1 行等于第 3 行。把 <code>c[j][i]</code> 写反的程序，会在这里露馅。</p>
-
-    <h3>尺子四：不解方程就知道中心是 2.5</h3>
-    <p>上墙钉死 10，另外三面钉死 0。正中心那个盒子是多少？下面这个推理不用解任何方程：</p>
+    <h2>五 · 尺子四：不解方程就知道中心是 2.5</h2>
+    <p>上墙钉死 10、另外三面钉死 0，正中心的盒子是多少？把它和另外三道题放在一起看。四道题都是 5 × 5、内部墙 <code>k</code>、边界墙 <code>2k</code>，只差哪一面墙是 10：</p>
+    <pre class="formula"><code>上 10 题：上墙 10，左、右、下墙 0      它的解（一张 5 × 5 的表）记作 T
+右 10 题：右墙 10，另外三面 0          解记作 R
+下 10 题：下墙 10，另外三面 0          解记作 B
+左 10 题：左墙 10，另外三面 0          解记作 L</code></pre>
     <figure>
-      <svg viewBox="0 0 600 150" role="img" aria-label="四个正方形，分别只有上、右、下、左一面墙钉死 10，四个相加等于四面都钉死 10 的正方形">
+      <svg viewBox="0 0 600 170" role="img" aria-label="四个正方形，分别只有上、右、下、左一面墙钉死 10，四个相加等于四面都钉死 10 的正方形">
         <g font-size="13" fill="var(--ink)">
           <rect x="20"  y="30" width="80" height="80" fill="var(--surface)" stroke="var(--ink)" stroke-width="1"></rect>
           <line x1="20" y1="30" x2="100" y2="30" stroke="var(--accent)" stroke-width="6"></line>
@@ -112,43 +185,223 @@ c[2][4] = 1.5          // 第 2 行、第 4 列（都从 0 数）</code></pre>
           <rect x="480" y="30" width="80" height="80" fill="none" stroke="var(--accent)" stroke-width="6"></rect>
           <circle cx="520" cy="70" r="4" fill="var(--ink)"></circle>
 
-          <text x="60"  y="132" text-anchor="middle" fill="var(--muted)" font-size="12">中心 = x</text>
-          <text x="170" y="132" text-anchor="middle" fill="var(--muted)" font-size="12">中心 = x</text>
-          <text x="280" y="132" text-anchor="middle" fill="var(--muted)" font-size="12">中心 = x</text>
-          <text x="390" y="132" text-anchor="middle" fill="var(--muted)" font-size="12">中心 = x</text>
-          <text x="520" y="132" text-anchor="middle" fill="var(--muted)" font-size="12">中心 = 10</text>
+          <text x="60"  y="132" text-anchor="middle" fill="var(--muted)" font-size="12">上 10 题</text>
+          <text x="170" y="132" text-anchor="middle" fill="var(--muted)" font-size="12">右 10 题</text>
+          <text x="280" y="132" text-anchor="middle" fill="var(--muted)" font-size="12">下 10 题</text>
+          <text x="390" y="132" text-anchor="middle" fill="var(--muted)" font-size="12">左 10 题</text>
+          <text x="520" y="132" text-anchor="middle" fill="var(--muted)" font-size="12">四面都是 10</text>
+          <text x="60"  y="150" text-anchor="middle" fill="var(--muted)" font-size="12">中心 x</text>
+          <text x="170" y="150" text-anchor="middle" fill="var(--muted)" font-size="12">中心 x</text>
+          <text x="280" y="150" text-anchor="middle" fill="var(--muted)" font-size="12">中心 x</text>
+          <text x="390" y="150" text-anchor="middle" fill="var(--muted)" font-size="12">中心 x</text>
+          <text x="520" y="150" text-anchor="middle" fill="var(--muted)" font-size="12">处处 10</text>
           <text x="300" y="18" text-anchor="middle" fill="var(--muted)" font-size="12">粗线 = 钉死 10 的墙，细线 = 钉死 0 的墙</text>
         </g>
       </svg>
       <figcaption>四张图各只有一面墙是 10，转一转就互相重合，所以四个中心值一样，都叫 <code>x</code>。</figcaption>
     </figure>
-    <pre class="formula"><code>① 四张图叠加：每个盒子把四个解对应位置的数加起来，四面墙也各加起来
-   ⇒ 得到"四面都钉死 10"的那道题（每个方程都是一次式，所以加起来仍然成立）
-② 四面都钉死 10，就是平场 ⇒ 处处是 10（尺子二）
-③ 四张图只差一个转角，正中心转了还是正中心 ⇒ 四个中心值相同，都是 x
-④ 所以 4x = 10，x = 2.5</code></pre>
-    <p>你的程序算出来必须是 <code>2.500</code>（中心要真的是一个盒子，所以格子数取奇数，5 × 5 正好）。</p>
-    <p>第①步能成立，靠的是第 6 课那件事的另一面：<code>D</code> 不随浓度变，方程里每一项都只是"某个数 × 某个浓度"，所以两个解加起来还是一个解。</p>
 
-    <h3>尺子五：极值原理</h3>
-    <p>任何一道题里，所有盒子的值都必须落在最低的墙值和最高的墙值之间。超出去一定是 bug。</p>
+    <h3>第①步：四个解加起来，是"四面都钉死 10"那道题的解</h3>
+    <p>拿左上角的盒子 <code>c[4][0]</code> 看：左边、上边是墙，右邻 <code>c[4][1]</code>，下邻 <code>c[3][0]</code>。它在四道题里的"进 = 出"（净流入 = 0），都按"左墙、上墙、右邻、下邻"的顺序写。<code>T</code> 是 T 表里这个盒子的值，<code>T右</code>、<code>T下</code> 是 T 表里它右邻、下邻的值，其余同理：</p>
+    <pre class="formula"><code>上 10 题：2k × (0 − T)  + 2k × (10 − T) + k × (T右 − T) + k × (T下 − T) = 0
+右 10 题：2k × (0 − R)  + 2k × (0 − R)  + k × (R右 − R) + k × (R下 − R) = 0
+下 10 题：2k × (0 − B)  + 2k × (0 − B)  + k × (B右 − B) + k × (B下 − B) = 0
+左 10 题：2k × (10 − L) + 2k × (0 − L)  + k × (L右 − L) + k × (L下 − L) = 0</code></pre>
+    <p>四式相加，按列合并。记 <code>S = T + R + B + L</code>（S 表是四张表对应位置相加），<code>S右 = T右 + R右 + B右 + L右</code>，<code>S下</code> 同理：</p>
+    <pre class="formula"><code>左墙那一列：2k × (0 − T) + 2k × (0 − R) + 2k × (0 − B) + 2k × (10 − L)
+          = 2k × (0 + 0 + 0 + 10 − T − R − B − L) = 2k × (10 − S)
+上墙那一列：2k × (10 − T) + 2k × (0 − R) + 2k × (0 − B) + 2k × (0 − L) = 2k × (10 − S)
+右邻那一列：k × (T右 + R右 + B右 + L右 − T − R − B − L)              = k × (S右 − S)
+下邻那一列：                                                          k × (S下 − S)
+
+合起来：2k × (10 − S) + 2k × (10 − S) + k × (S右 − S) + k × (S下 − S) = 0</code></pre>
+    <p>这正是"四面墙都钉死 10"那道题里左上角盒子的方程。换成别的盒子也一样：每一项都是"权重 × (对面 − 自己)"，权重在四道题里相同，可以提出来合并；每一面墙在四道题里恰好有一道是 10、三道是 0，加起来是 10。所以 S 表满足"四面都钉死 10"的全部 25 个方程。那道题的答案按尺子二的理由是处处 10（每面墙的流进量 <code>w × (10 − 10) = 0</code>），所以 S 表处处是 10。</p>
+    <p>这一步靠的是<strong>权重不随浓度变</strong>。要是扩散系数 <code>D</code> 跟着浓度变，<code>k = D × A / Δx</code> 在四道题里就各不相同，不能提出来合并，这一步就不成立。</p>
+
+    <h3>第②步：四个中心值相同</h3>
+    <p>把上 10 题的整张图顺时针转 90°：上墙转到右边，就是右 10 题。格子是正方形，内部墙都是 <code>k</code>、边界墙都是 <code>2k</code>，转过去之后每个盒子、每道墙的权重都对得上，所以 T 表转 90° 就是 R 表。正中心的盒子 <code>c[2][2]</code> 转完还在正中心，所以 T 表和 R 表在中心的值相同。再转两次得到 B 表和 L 表，道理一样。四个中心值相同，记作 <code>x</code>。</p>
+
+    <h3>第③步：解出 x</h3>
+    <pre class="formula"><code>S 表在中心：T中 + R中 + B中 + L中 = x + x + x + x = 4x = 10
+            x = 2.5</code></pre>
+    <p>你的程序算出来必须是 <code>2.500</code>。中心要真的是一个盒子，所以每边的格子数取奇数，5 × 5 正好。尺子三（左墙钉死 10）就是左 10 题，所以它的中心也是 <code>2.500</code>。</p>
   </section>
 
   <section>
-    <h2>五 · 易错点</h2>
+    <h2>六 · 易错点</h2>
     <ol>
-      <li><strong><code>c[i][j]</code> 和 <code>c[j][i]</code> 搞反</strong> → 图沿对角线翻转。尺子三能抓。</li>
-      <li><strong>四个判断写成 <code>if … else if</code> 链</strong> → 角上的盒子少算一面墙。尺子四的中心值会偏。</li>
-      <li><strong>从第 0 行开始打印</strong> → 屏幕上下颠倒。数值没错，但看对称会看反。</li>
-      <li><strong>从头重写</strong>而不是在第 6 课的程序上改 → 第 6 课已经修好的错，会在这里再犯一遍。</li>
+      <li><strong><code>c[i][j]</code> 和 <code>c[j][i]</code> 混用</strong> → 整张表沿对角线翻过去。尺子三能抓：第 0 行和第 4 行不再相等。</li>
+      <li><strong>四个判断写成 <code>if … else if</code> 链</strong> → 角上的盒子少算一面墙。尺子四能抓：中心不再是 <code>2.500</code>。</li>
+      <li><strong>用 <code>new Array(n).fill(new Array(n).fill(0))</code> 建表</strong> → 所有行是同一个数组，打出来每一行一模一样。尺子一抓不住它（练习第 5 题讲为什么），尺子三、四抓得住。</li>
+      <li><strong>从 <code>j = 0</code> 开始打印</strong> → 屏幕上下颠倒。数值没错，但看对称会看反。</li>
+      <li><strong>算出新值却忘了写回 <code>c[j][i]</code></strong> → 永远是初值。尺子一的症状：25 个全是 <code>0.000</code>，每一遍的最大改动都停在 <code>5.000</code>（<code>c[0][0]</code> 每一遍都从 0 算出 5.000，却没存进去），只能等保险丝。你上一轮写二维版时踩过这个。</li>
+      <li><strong>最外层把上墙叫 <code>top</code></strong> → 网页里的 Playground 会标红「Cannot redeclare block-scoped variable」（不能重复声明）：浏览器已经有一个全局变量叫 <code>top</code>。改个名字（比如 <code>topWall</code>），或者把四面墙当作函数参数传进去。</li>
+      <li><strong>从头重写</strong>而不是在一维程序上改 → 一维里已经修好的错，会在这里再犯一遍。</li>
     </ol>
   </section>
 
   <section>
-    <h2>六 · 写完交什么</h2>
+    <h2>七 · 在哪里跑</h2>
+    <p><strong>iPad 或任何电脑的浏览器：</strong>TypeScript 官方的在线练习场 Playground（<a href="https://www.typescriptlang.org/play">typescriptlang.org/play</a>）。把代码贴进左边的编辑区，点 Run，<code>console.log</code> 打出来的东西在右边的 Logs 标签里（按钮名以网页为准）。红色波浪线是类型检查报的错，先改掉它们再看输出。</p>
+    <p><strong>电脑上装了 Node：</strong>终端里 <code>node Diffusion2D.ts</code>。Node 22.18 或更新的版本能直接跑 <code>.ts</code> 文件（Node 官方文档这么写，我这边的 Node 22.22 实测可以）。</p>
+    <p>我这边能跑 TypeScript：你贴来代码，我逐行读，也直接运行一遍对照输出。</p>
+  </section>
+
+  <section>
+    <h2>八 · 起点：一维程序 Diffusion1D.ts</h2>
+    <p>第 6 课参考答案的 TypeScript 版。先把它整个贴进 Playground 跑一遍，确认看到下面那段输出，再动手改成二维。要改的地方：数组换成一张表，"看左、看右"扩成"看左、看右、看下、看上"，墙从两面变成四面，打印换成一张表从最上面一行往下打。</p>
+    <details class="answer" id="start">
+      <summary>展开 Diffusion1D.ts 全文</summary>
+      <pre class="formula"><code>// ============================================================
+// Diffusion1D.ts  —— 砖块 6：一维稳态扩散 + 高斯-塞德尔
+//
+// 物理：一排 N 个盒子，水静止，墨只靠扩散在盒子之间移动。
+//       两端各一面边界墙：钉死浓度的墙，或不透水的墙。求稳态。
+// 数学：每个盒子一条方程  C_P = 分子 / 分母
+//       内部墙：        分子 += k·C_邻居    分母 += k      k = D·A/Δx
+//       钉死浓度的墙：  分子 += 2k·C_墙     分母 += 2k     （盒心到墙只有半格）
+//       不透水的墙：    什么都不加
+//       解法：高斯-塞德尔，算出新值立刻写回；最大改动 &lt; 容差 就停。
+// 运行：贴进 TypeScript Playground 点 Run；或在电脑上 node Diffusion1D.ts
+//       （Node 22.18 或更新的版本能直接跑 .ts 文件）。
+// ============================================================
+
+// ===== 1. 墙的描述 =====
+// 联合类型：一面墙要么是「钉死的，带一个值」，要么是「不透水的，什么都不带」。
+type Wall =
+  | { kind: &quot;fixed&quot;; value: number } // 钉死浓度的墙，带着墙上的浓度 [kg/m³]
+  | { kind: &quot;closed&quot; };              // 不透水的墙
+
+function fixedWall(value: number): Wall {
+  return { kind: &quot;fixed&quot;, value: value };
+}
+const closedWall: Wall = { kind: &quot;closed&quot; };
+
+// ===== 2. 求解器 =====
+// 返回：每个盒子的浓度 [kg/m³]，以及一共扫了几遍。
+// 两面墙都不透水时方程没有唯一解，本程序不处理这种设定。
+function solveDiffusion1D(
+  n: number,             // 盒子个数
+  length: number,        // 全长 L [m]
+  diffusivity: number,   // 扩散系数 D [m²/s]
+  area: number,          // 墙的面积 A [m²]
+  left: Wall,
+  right: Wall,
+  initialGuess = 0.0,
+  tolerance = 1e-6,
+  maxSweeps = 100_000,   // 保险丝：写错时不至于永远转下去
+): { c: number[]; sweeps: number } {
+
+  if (!Number.isInteger(n) || n &lt; 1) {
+    throw new Error(&quot;至少要有一个盒子&quot;);
+  }
+
+  const dx = length / n;                 // 格宽 Δx [m]
+  const k = diffusivity * area / dx;     // 内部墙权重 [m³/s]
+
+  const c: number[] = new Array(n).fill(initialGuess);
+  let sweeps = 0;
+
+  while (sweeps &lt; maxSweeps) {
+    sweeps += 1;
+    let maxChange = 0.0;                 // 每一遍开头清零
+
+    for (let i = 0; i &lt; n; i++) {
+      let numerator = 0.0;               // 分子
+      let denominator = 0.0;             // 分母
+
+      // 看左边：是邻居还是边界墙
+      if (i &gt; 0) {
+        numerator += k * c[i - 1];
+        denominator += k;
+      } else {
+        switch (left.kind) {
+          case &quot;fixed&quot;:
+            numerator += 2.0 * k * left.value;
+            denominator += 2.0 * k;
+            break;
+          case &quot;closed&quot;:
+            break;
+        }
+      }
+
+      // 看右边：和看左边是两个独立的判断（只有一个盒子时，两边都是墙）
+      if (i &lt; n - 1) {
+        numerator += k * c[i + 1];
+        denominator += k;
+      } else {
+        switch (right.kind) {
+          case &quot;fixed&quot;:
+            numerator += 2.0 * k * right.value;
+            denominator += 2.0 * k;
+            break;
+          case &quot;closed&quot;:
+            break;
+        }
+      }
+
+      const newValue = numerator / denominator;
+      maxChange = Math.max(maxChange, Math.abs(newValue - c[i]));
+      c[i] = newValue;                   // 就地写回：后面的盒子马上用上新值
+    }
+
+    if (maxChange &lt; tolerance) {
+      break;
+    }
+  }
+
+  return { c: c, sweeps: sweeps };
+}
+
+// ===== 3. 打印 =====
+function report(title: string, result: { c: number[]; sweeps: number }): void {
+  const values = result.c.map((v) =&gt; v.toFixed(3)).join(&quot; &quot;);
+  console.log(`${title}：${values}   （扫了 ${result.sweeps} 遍）`);
+}
+
+// ===== 4. 第 6 课的六把验收尺子 =====
+const L = 0.1;     // 全长 [m]
+const D = 1e-9;    // 墨在水里的扩散系数 [m²/s]
+const A = 1e-4;    // 墙面积 1 cm² [m²]
+
+// 参数顺序：盒子数, 全长, 扩散系数, 墙面积, 左墙, 右墙
+report(&quot;尺子 1 · N=5  左钉死 10 右钉死 0&quot;, solveDiffusion1D(5,  L, D,       A, fixedWall(10), fixedWall(0)));
+report(&quot;尺子 2 · N=5  左钉死 10 右不透水&quot;, solveDiffusion1D(5,  L, D,       A, fixedWall(10), closedWall));
+report(&quot;尺子 3 · N=5  两面都钉死 5     &quot;, solveDiffusion1D(5,  L, D,       A, fixedWall(5),  fixedWall(5)));
+report(&quot;尺子 4 · 同尺子 1，D 放大百倍  &quot;, solveDiffusion1D(5,  L, 100 * D, A, fixedWall(10), fixedWall(0)));
+report(&quot;尺子 5 · N=1  左钉死 10 右钉死 0&quot;, solveDiffusion1D(1,  L, D,       A, fixedWall(10), fixedWall(0)));
+report(&quot;尺子 6 · N=10 左钉死 10 右钉死 0&quot;, solveDiffusion1D(10, L, D,       A, fixedWall(10), fixedWall(0)));
+
+// ===== 5. 给插页 B：盒子数与遍数 =====
+console.log(&quot;&quot;);
+console.log(&quot;左钉死 10、右钉死 0，盒子数与遍数：&quot;);
+for (const n of [5, 10, 20, 40]) {
+  const r = solveDiffusion1D(n, L, D, A, fixedWall(10), fixedWall(0));
+  console.log(`N = ${n}：${r.sweeps} 遍`);
+}</code></pre>
+      <p><strong>运行后应该看到：</strong></p>
+      <pre class="formula"><code>尺子 1 · N=5  左钉死 10 右钉死 0：9.000 7.000 5.000 3.000 1.000   （扫了 37 遍）
+尺子 2 · N=5  左钉死 10 右不透水：10.000 10.000 10.000 10.000 10.000   （扫了 115 遍）
+尺子 3 · N=5  两面都钉死 5     ：5.000 5.000 5.000 5.000 5.000   （扫了 38 遍）
+尺子 4 · 同尺子 1，D 放大百倍  ：9.000 7.000 5.000 3.000 1.000   （扫了 37 遍）
+尺子 5 · N=1  左钉死 10 右钉死 0：5.000   （扫了 2 遍）
+尺子 6 · N=10 左钉死 10 右钉死 0：9.500 8.500 7.500 6.500 5.500 4.500 3.500 2.500 1.500 0.500   （扫了 133 遍）
+
+左钉死 10、右钉死 0，盒子数与遍数：
+N = 5：37 遍
+N = 10：133 遍
+N = 20：480 遍
+N = 40：1705 遍</code></pre>
+      <p>这份代码我在这边用 Node 22.22 跑过，上面是它的原样输出；也用 TypeScript 的严格模式做过类型检查，没有报错。</p>
+    </details>
+  </section>
+
+  <section>
+    <h2>九 · 写完交什么</h2>
     <ol>
-      <li><code>Diffusion2D.swift</code> 全文</li>
-      <li>尺子一到五的输出（5 × 5，二维的表从最上面一行往下打印）</li>
+      <li><code>Diffusion2D.ts</code> 全文</li>
+      <li>尺子一到四的输出：每道题一张 5 × 5 的表，从最上面一行往下打，外加扫了几遍</li>
+      <li>尺子五：你自己核对的结果（一句话：四道题里有没有值跑出墙值的范围）</li>
     </ol>
   </section>
 
@@ -157,47 +410,68 @@ c[2][4] = 1.5          // 第 2 行、第 4 列（都从 0 数）</code></pre>
     <p>这一组比上一组难：有计算，也有换了数字的题。凭理解做，别回头翻。</p>
     <div class="quiz" id="quiz">
 
-      <div class="q" data-answer="0">
-        <p class="stem">1. 正方形格子。右上角的盒子：右墙钉死，上墙<strong>不透水</strong>。它的分母是几个 <code>k</code>？</p>
+      <div class="q" data-answer="2">
+        <p class="stem">1. 正方形格子。右上角的盒子 <code>c[4][4]</code>：右墙钉死，上墙<strong>不透水</strong>。它的分母是几个 <code>k</code>？</p>
         <div class="opts">
-          <button class="opt" type="button" aria-pressed="false">四个 k</button>
-          <button class="opt" type="button" aria-pressed="false">五个 k</button>
           <button class="opt" type="button" aria-pressed="false">六个 k</button>
+          <button class="opt" type="button" aria-pressed="false">五个 k</button>
+          <button class="opt" type="button" aria-pressed="false">四个 k</button>
           <button class="opt" type="button" aria-pressed="false">三个 k</button>
         </div>
-        <p class="fb" hidden data-fb="左邻 <code>k</code> + 下邻 <code>k</code> + 右墙钉死 <code>2k</code> + 上墙不透水 <code>0</code> = <code>4k</code>。选六个 k，是把不透水的墙也当成了钉死的墙。"></p>
+        <p class="fb" hidden data-fb="左邻 <code>k</code> + 下邻 <code>k</code> + 右墙钉死 <code>2k</code> + 上墙不透水 <code>0</code> = <code>4k</code>。选六个 k，是把不透水的墙也当成了钉死的墙，给了 <code>2k</code>；选五个 k，是把不透水的墙当成了一道普通的内部墙，给了 <code>k</code>，好像墙外还有一个盒子；选三个 k，是钉死的墙只给了 <code>k</code>，忘了盒子中心到边界墙只有半格，权重是 <code>2k</code>。"></p>
+      </div>
+
+      <div class="q" data-answer="1">
+        <p class="stem">2. 尺子四（上墙钉死 10，另外三面钉死 0），初值全 0，一行一行扫（外层 <code>j</code> 从 0 到 4，内层 <code>i</code> 从 0 到 4）。第一遍扫到左上角 <code>c[4][0]</code> 时，它的新值是多少？</p>
+        <div class="opts">
+          <button class="opt" type="button" aria-pressed="false">5.000</button>
+          <button class="opt" type="button" aria-pressed="false">3.333</button>
+          <button class="opt" type="button" aria-pressed="false">2.500</button>
+          <button class="opt" type="button" aria-pressed="false">10.000</button>
+        </div>
+        <p class="fb" hidden data-fb="扫到它之前，第 0 到 3 行每个盒子的四面，不是值为 0 的邻居，就是钉死 0 的墙，算出来都是 0；它的右邻 <code>c[4][1]</code> 还没扫到，也是 0。所以 分子 = <code>2k × 0</code>（左墙）+ <code>2k × 10</code>（上墙）+ <code>k × 0</code>（右邻）+ <code>k × 0</code>（下邻）= <code>20k</code>，分母 = <code>2k + 2k + k + k = 6k</code>，新值 = <code>20k / 6k = 3.333</code>。选 5.000，是把钉死成 0 的左墙当成了不透水、没放进分母（<code>20k / 4k</code>）：钉死成 0 的墙外是一缸清水，会把墨吸走，分母照样加 <code>2k</code>。选 2.500，是边界墙用了 <code>k</code> 而不是 <code>2k</code>（<code>10k / 4k</code>）。选 10.000，是把墙上的值当成了盒子的值。"></p>
       </div>
 
       <div class="q" data-answer="0">
-        <p class="stem">2. 7 × 7 网格。上墙钉死 <strong>8</strong>，另外三面钉死 0。正中心的盒子是多少？</p>
+        <p class="stem">3. 7 × 7 网格。上墙钉死 <strong>8</strong>，另外三面钉死 0。正中心的盒子是多少？</p>
         <div class="opts">
           <button class="opt" type="button" aria-pressed="false">2.0</button>
           <button class="opt" type="button" aria-pressed="false">4.0</button>
-          <button class="opt" type="button" aria-pressed="false">2.7</button>
+          <button class="opt" type="button" aria-pressed="false">2.5</button>
           <button class="opt" type="button" aria-pressed="false">8.0</button>
         </div>
-        <p class="fb" hidden data-fb="四张各只有一面墙是 8 的图叠起来 = 四面都是 8 的平场，处处是 8。四个中心值相同，所以 <code>4x = 8</code>，<code>x = 2</code>。格子数是 5 还是 7 不影响这个推理，只要正中心是一个盒子。选 4.0 是把上下两面墙取了平均；选 2.7 是算成了 8 ÷ 3。"></p>
+        <p class="fb" hidden data-fb="四张各只有一面墙是 8 的图加起来，是四面都钉死 8 的题，处处是 8；四个中心值相同，所以 <code>4x = 8</code>，<code>x = 2</code>。格子是 5 × 5 还是 7 × 7 不影响这个推理，只要正中心是一个盒子（我这边跑 7 × 7 得到 2.000）。选 4.0，是把中间那一列当成了一维的直线，上 8 下 0 取一半，漏了左右两面钉死 0 的墙；选 2.5，是把尺子四的答案直接搬来，没按墙值换算（那里是 <code>10 ÷ 4</code>，这里是 <code>8 ÷ 4</code>）；选 8.0，是把墙上的值当成了盒子的值。"></p>
       </div>
 
-      <div class="q" data-answer="2">
-        <p class="stem">3. 5 × 5。左墙钉死 10，右墙钉死 0，上下两面不透水。如果<strong>求解部分</strong>一律用了 <code>c[i][j]</code>，而<strong>打印部分</strong>用的是 <code>c[j][i]</code>，打印出的"从下往上第 3 行、从左往右第 1 个"是多少？（正确值是 9）</p>
+      <div class="q" data-answer="3">
+        <p class="stem">4. 5 × 5，尺子一的墙（左钉死 10，右钉死 0，上下不透水）。求解部分一律用 <code>c[i][j]</code>，打印部分用 <code>c[j][i]</code>，从最上面一行往下打。打印出来的<strong>最后一行</strong>（<code>j = 0</code>）是什么？</p>
         <div class="opts">
-          <button class="opt" type="button" aria-pressed="false">9.0</button>
-          <button class="opt" type="button" aria-pressed="false">7.0</button>
-          <button class="opt" type="button" aria-pressed="false">5.0</button>
-          <button class="opt" type="button" aria-pressed="false">1.0</button>
+          <button class="opt" type="button" aria-pressed="false">9 7 5 3 1</button>
+          <button class="opt" type="button" aria-pressed="false">1 3 5 7 9</button>
+          <button class="opt" type="button" aria-pressed="false">1 1 1 1 1</button>
+          <button class="opt" type="button" aria-pressed="false">9 9 9 9 9</button>
         </div>
-        <p class="fb" hidden data-fb="求解和打印用了相反的约定，打印出来的表就沿对角线翻转：原来「每一行都是 9 7 5 3 1」变成了「每一列都是 9 7 5 3 1」，也就是第 0 行全是 9、第 1 行全是 7、第 2 行全是 5……从下往上第 3 行是第 2 行，全是 5。这就是尺子一能一眼抓出这个错的原因：本该每行都一样，结果变成了每列都一样。"></p>
+        <p class="fb" hidden data-fb="求解时 <code>c[i][j]</code> 的第一个下标是列。打印时把第一个下标当成行，打出来的第 j 行就是真正的第 j 列。真正的第 0 列是贴着左墙那一列，5 个盒子都是 9，所以最后一行是 9 9 9 9 9；整张表从上往下是全 1、全 3、全 5、全 7、全 9 各一行，看起来像上下两面墙钉死、左右不透水。尺子一本该每一行都一样，结果每一列都一样，一眼就能看出来。选 9 7 5 3 1，是没想到表会翻；选 1 3 5 7 9，是以为只是左右翻了过来；选 1 1 1 1 1，是以为整张表顺时针转了 90°，把贴着右墙的那一列转到了最下面。"></p>
+      </div>
+
+      <div class="q" data-answer="1">
+        <p class="stem">5. 你用 <code>new Array(5).fill(new Array(5).fill(0))</code> 建了表，其余全对。跑尺子三（左墙钉死 10，另外三面钉死 0），会看到什么？</p>
+        <div class="opts">
+          <button class="opt" type="button" aria-pressed="false">表上下颠倒</button>
+          <button class="opt" type="button" aria-pressed="false">五行一样，停不下来</button>
+          <button class="opt" type="button" aria-pressed="false">类型检查报错</button>
+          <button class="opt" type="button" aria-pressed="false">和答案一样</button>
+        </div>
+        <p class="fb" hidden data-fb="五行是同一个数组，改 <code>c[0][0]</code> 就是改 <code>c[4][0]</code>。尺子三里，最下面一行的盒子要把下墙（钉死 0，<code>2k</code>）算进去，中间一行的盒子上下都是邻居，两种算法轮流改同一个数，互相覆盖。我照这样跑过：扫满 100000 遍，最后一遍的最大改动还有 2.2，打出来五行一模一样。选表上下颠倒，是另一个错（从 <code>j = 0</code> 开始打印）的症状；选类型检查报错，是以为 TypeScript 能抓，可这张表的类型照样是 <code>number[][]</code>；选和答案一样，是尺子一上看到的情况：尺子一每一行的答案本来就相同，共用一行也算得出 9 7 5 3 1（只是遍数从 66 变成 20），所以尺子一抓不住这个错。"></p>
       </div>
 
     </div>
   </section>
 
   <footer>
-    <p><strong>顺序建议：</strong>这一课可以先读。但写 <code>Diffusion2D.swift</code> 之前，先把第 6 课的程序跑通——尺子一的标准答案要从它那里来。</p>
-    <p><strong>下一步：</strong>两个程序写完发来点评。插页 B 等你量出第 6 课那四个遍数就开始。</p>
-    <p><strong>主要参考：</strong><a href="https://spiral.imperial.ac.uk/handle/10044/1/8335">Jasak (1996)</a> 第 3 章讲扩散项离散的部分：它把"对每个面求和"写成对任意多面体都成立的形式——一维、二维、三维只是面的个数不同，正是这一课第一节那张表的一般版本。</p>
-    <p><strong>卡住了就回到对话里问我。</strong>编译报错把原文整段贴过来。</p>
+    <p><strong>下一步：</strong>代码和输出贴过来，我在这边直接跑一遍，按五把尺子点评。然后是砖块 8：滴一滴墨，看它随时间散开。</p>
+    <p><strong>主要参考：</strong><a href="https://spiral.imperial.ac.uk/handle/10044/1/8335">Jasak (1996)</a> 第 3 章讲扩散项离散的部分：它把"对每个面求和"写成对任意多面体都成立的形式——一维、二维、三维只是面的个数不同，正是这一课第二节那张表的一般版本。<code>fill</code> 放进每一格的是同一个对象，这一点在 MDN 的 <a href="https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Array/fill">Array.prototype.fill</a> 页面有说明。</p>
+    <p><strong>卡住了就回到对话里问我。</strong>报错时把原文整段贴过来。</p>
   </footer>
 
 </main>

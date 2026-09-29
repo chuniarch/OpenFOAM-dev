@@ -9,7 +9,7 @@
 3. **公式一律纯文本**，例如 `C_P = (a*C_P_old + Σ w*C_邻居) / (a + Σ w)`。终端渲染 LaTeX 会变乱码。
 4. **举例一律用「水和墨水」**，不要用热传导。
 5. **不替他写代码。** 教思考方向、设计思路、知识点、易错点。他写完发来，我只点评。
-   只有他明确说「打个样」，才给完整代码，并且要顺带取好文件名（如 `Diffusion1D.swift`）。
+   只有他明确说「打个样」，才给完整代码，并且要顺带取好文件名（如 `Diffusion1D.ts`）。
 6. **每个阶段先给验收尺子** —— 怎么用物理直觉判断结果对不对（守恒 / 对称 / 有界 / 单调 / 解析解）。
 7. **问「为什么」时讲透物理本质**，不要只给公式。
 
@@ -56,6 +56,12 @@
 ## 工作约定
 
 - 本会话产出一律写到 `openfoam-learning/main` 分支，不新建 `claude/*` 分支。
+- **代码一律先用 TypeScript，不用 Swift**（2026-09-29 学习者要求：「以后的代码先不要用 swift，先用 ts」）。
+  课文里的语法点、易错点、参考答案都按 TypeScript 写；原来的 Swift 参考答案留在 `code/*.swift` 存档。
+  学习者在 iPad 浏览器的 TypeScript Playground 里跑，或在电脑上 `node x.ts`（Node 官方文档：22.18 起默认能直接跑 .ts）。
+  这边环境有 Node 22.22 和 tsc：教学用的代码和数字直接跑 TS 核对（`node x.ts`），类型检查用
+  `tsc --noEmit --strict --target es2022 --lib es2022,dom x.ts`——带 dom 是为了和 Playground 一样，
+  查出最外层变量名撞上浏览器全局名（`top`、`name`、`closed`……）的错。Node 直接跑 .ts 时不支持 `enum`。
 - 文档落盘后 commit + push，不留在对话里。
 - `.claude/skills/` 三个分支（openfoam-learning/main、master、ipad-cfd-teaching/main）保持同步。
 - 发布课文一律走 `tools/build_artifact.py`，别再手拼。它会拦下三类曾经真实出过的错：发布页里残留 `../` 引用、

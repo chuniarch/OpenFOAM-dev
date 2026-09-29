@@ -13,25 +13,25 @@
 <main class="sheet">
 
   <header class="masthead">
-    <p class="eyebrow">第 6 课 · 砖块 6 · Diffusion1D.swift</p>
+    <p class="eyebrow">第 6 课 · 砖块 6 · Diffusion1D.ts</p>
     <h1>你的第一个求解器</h1>
-    <p class="lede">把砖块 1–5 和插页 A 的手算交给计算机。这一课先给设计图、要用到的 Swift 知识点、容易错的地方和写完对照的标准输出；完整的参考代码折叠在最后，<strong>先自己写，再打开</strong>。</p>
-    <p class="meta"><span>动手，约 30–60 分钟</span><span>前置：砖块 1–5、插页 A</span><span>产出：<code>Diffusion1D.swift</code></span></p>
+    <p class="lede">把砖块 1–5 和插页 A 的手算交给计算机。这一课先给设计图、要用到的 TypeScript 知识点、容易错的地方和写完对照的标准输出；完整的参考代码折叠在最后，<strong>先自己写，再打开</strong>。</p>
+    <p class="meta"><span>动手，约 30–60 分钟</span><span>前置：砖块 1–5、插页 A</span><span>产出：<code>Diffusion1D.ts</code></span></p>
   </header>
 
   <section>
     <h2>一 · 先定验收尺子（写代码之前）</h2>
-    <p>写第一行代码之前，先定好"什么输出算对"。下面每一条都是你已经会推的东西，数字我都用同样的规则算过一遍。</p>
+    <p>写第一行代码之前，先定好"什么输出算对"。下面每一条都是你已经会推的东西，数字我都用同样的规则算过一遍。六条共同的条件：一根管等分成 N 个盒子，内部墙权重 <code>k</code>，边界墙权重 <code>2k</code>，初值全 0，容差 <code>1e-6</code>，高斯-塞德尔。</p>
     <div class="scroll">
     <table>
       <thead><tr><th>#</th><th>设定</th><th>期望输出</th><th>抓什么错</th></tr></thead>
       <tbody>
-        <tr><td>1</td><td><strong>情形甲</strong>，5 个盒子：左墙钉死 10，右墙钉死 0；初值全 0，容差 <code>1e-6</code></td><td><code>9.000 7.000 5.000 3.000 1.000</code>，约 37 遍</td><td>方程、2k、写回</td></tr>
-        <tr><td>2</td><td><strong>情形乙</strong>，5 个盒子：左墙钉死 10，右墙<strong>不透水</strong></td><td>全是 <code>10.000</code></td><td>把不透水写成了钉死成 0</td></tr>
-        <tr><td>3</td><td>平场：两面墙都钉死 5，初值全 0</td><td>全是 <code>5.000</code></td><td>分母漏加</td></tr>
-        <tr><td>4</td><td>情形甲，把扩散系数 <code>D</code> 放大 100 倍</td><td>和第 1 条<strong>一个数字都不差</strong></td><td>权重没有统一用 <code>k</code></td></tr>
-        <tr><td>5</td><td>情形甲，只有 <strong>1</strong> 个盒子</td><td><code>5.000</code></td><td>一个盒子两面都是边界墙时的判断</td></tr>
-        <tr><td>6</td><td>情形甲，<strong>10</strong> 个盒子</td><td><code>9.5 8.5 7.5 … 1.5 0.5</code></td><td>下标、循环的起止</td></tr>
+        <tr><td>1</td><td>5 个盒子：左墙钉死 10，右墙钉死 0</td><td><code>9.000 7.000 5.000 3.000 1.000</code>，约 37 遍</td><td>方程、2k、写回</td></tr>
+        <tr><td>2</td><td>5 个盒子：左墙钉死 10，右墙<strong>不透水</strong></td><td>全是 <code>10.000</code></td><td>把不透水写成了钉死成 0</td></tr>
+        <tr><td>3</td><td>平场：5 个盒子，两面墙都钉死 5</td><td>全是 <code>5.000</code></td><td>分母漏加</td></tr>
+        <tr><td>4</td><td>5 个盒子，左墙钉死 10，右墙钉死 0，扩散系数 <code>D</code> 放大 100 倍</td><td>和第 1 条<strong>一个数字都不差</strong></td><td>权重没有统一用 <code>k</code></td></tr>
+        <tr><td>5</td><td>只有 <strong>1</strong> 个盒子，左墙钉死 10，右墙钉死 0</td><td><code>5.000</code></td><td>一个盒子两面都是边界墙时的判断</td></tr>
+        <tr><td>6</td><td><strong>10</strong> 个盒子，左墙钉死 10，右墙钉死 0</td><td><code>9.5 8.5 7.5 … 1.5 0.5</code></td><td>下标、循环的起止</td></tr>
       </tbody>
     </table>
     </div>
@@ -65,7 +65,7 @@
       <li>容差，以及"最多扫几遍"——一根保险丝</li>
     </ul>
 
-    <h3>第四层 · 代码结构（用话说，Swift 你来写）</h3>
+    <h3>第四层 · 代码结构（用话说，TypeScript 你来写）</h3>
     <pre class="formula"><code>准备：算出 Δx 和 k；数组填上初始猜测
 
 重复，直到「最大改动 &lt; 容差」或「扫满保险丝上限」：
@@ -85,42 +85,50 @@
   </section>
 
   <section>
-    <h2>三 · 要用到的 Swift</h2>
+    <h2>三 · 要用到的 TypeScript</h2>
     <p>下面每一段只演示一个语法点，<strong>不是你的程序</strong>。你把它们组合起来。</p>
-    <pre class="formula"><code>import Foundation                     // 要用 String(format:) 就得先写这行
+    <pre class="formula"><code>const n = 5;                          // const：定了就不再改
+let total = 0;                        // let：之后要改
+const x = 1 / n;                      // 只有一种数 number，1 / 5 就是 0.2，不会被截成 0
 
-let n = 5                             // let：定了就不再改
-var total = 0.0                       // var：之后要改；写 0.0 而不是 0，Swift 才知道是小数
-let x = 1.0 / Double(n)               // Int 和 Double 不会自动换算，必须写 Double(...)
+const c: number[] = new Array(n).fill(0);   // 长度 n、全是 0 的数组
+c[0] = 3.5;                           // 下标从 0 开始；const 只是不让 c 换成别的数组，内容照样能改
 
-var c = [Double](repeating: 0.0, count: n)   // 长度 n、全是 0.0 的数组
-c[0] = 3.5                            // 下标从 0 开始；数组要改内容，就必须用 var 声明
-
-for i in 0..&lt;n { print(i) }           // 依次打印 0, 1, …, n−1（不含 n）
-while total &lt; 10.0 { total += 1.0 }   // 条件成立就一直做
-
-let bigger = max(2.0, 3.0)            // 两数取大
-let size = abs(-4.2)                  // 绝对值
-
-print(String(format: "%.3f", 9.0))    // 保留三位小数输出：9.000</code></pre>
-
-    <h3>墙的描述：推荐用 enum</h3>
-    <pre class="formula"><code>enum Wall {
-    case fixed(Double)     // 钉死浓度的墙：带着墙上的值
-    case closed            // 不透水的墙：什么都不带
+for (let i = 0; i &lt; n; i++) {         // 依次是 0, 1, …, n−1（不含 n）
+  console.log(i);
+}
+while (total &lt; 10) {                  // 条件成立就一直做
+  total += 1;
 }
 
-let left = Wall.fixed(10.0)
-let right = Wall.closed
+const bigger = Math.max(2, 3);        // 两数取大
+const size = Math.abs(-4.2);          // 绝对值
 
-switch left {
-case .fixed(let value):    // 是钉死的墙，顺便把值取出来叫 value
-    print("钉死在", value)
-case .closed:              // 是不透水的墙
-    print("不透水")
-}</code></pre>
-    <p>（每个 <code>case</code> 下面至少要有一条语句，只写注释会编译报错。）</p>
-    <p>推荐它的理由是：<strong>数据的形状和物理一致</strong>——只有钉死的墙才有一个值，不透水的墙根本没有值，<code>enum</code> 能把这件事写进类型里。用两个 <code>Bool</code> 加两个 <code>Double</code> 也能写，先跑起来最重要。</p>
+const v = 9;
+console.log(v.toFixed(3));            // 保留三位小数输出：9.000
+console.log(`一共 ${n} 个`);           // 反引号里的 ${…} 会换成它的值：一共 5 个</code></pre>
+
+    <h3>墙的描述：推荐用联合类型</h3>
+    <p>联合类型（英文 union type）的意思是「这几种形状之一」。每种形状带一个 <code>kind</code> 字段说明自己是哪一种：</p>
+    <pre class="formula"><code>type Wall =
+  | { kind: "fixed"; value: number }   // 钉死浓度的墙：带着墙上的值
+  | { kind: "closed" };                // 不透水的墙：什么都不带
+
+function describe(wall: Wall): void {
+  switch (wall.kind) {
+    case "fixed":                      // 是钉死的墙，只有在这里才能读 wall.value
+      console.log("钉死在", wall.value);
+      break;                           // 别漏 break，否则会接着执行下一个 case
+    case "closed":                     // 是不透水的墙
+      console.log("不透水");
+      break;
+  }
+}
+
+describe({ kind: "fixed", value: 10 });   // 打印：钉死在 10
+describe({ kind: "closed" });             // 打印：不透水</code></pre>
+    <p>在 <code>case "fixed"</code> 外面写 <code>wall.value</code>，TypeScript 会标红：它不能确定这面墙有值。漏掉第一个 <code>break</code> 的后果我试过：第一次调用会连打两行「钉死在 10」「不透水」。</p>
+    <p>推荐它的理由是：<strong>数据的形状和物理一致</strong>——只有钉死的墙才有一个值，不透水的墙根本没有值，联合类型能把这件事写进类型里。TypeScript 也有 <code>enum</code>，但它的每一项带不了值；而且用 Node 直接跑 <code>.ts</code> 文件时，<code>enum</code> 会报错。所以这里不用。用一个 <code>boolean</code> 加一个 <code>number</code> 也能写，先跑起来最重要。</p>
   </section>
 
   <section>
@@ -129,26 +137,27 @@ case .closed:              // 是不透水的墙
       <li><strong>算出新值却没写回数组</strong> → 永远是初始猜测。你上一轮写二维版时就踩过这个（记在 README 砖块 7 条目里）。</li>
       <li><strong>"最大改动"每一遍开头没清零</strong> → 它一直记着第一遍的大数，永远停不下来。</li>
       <li><strong>把第一个盒子的值当成墙上的值</strong> → 第一个盒子输出 <code>10</code>，应该是 <code>9</code>。墙上的值是已知的，盒子的值要按方程算。</li>
-      <li><strong>边界墙用了 <code>k</code> 而不是 <code>2k</code></strong> → 仍是一条直线，但第一个盒子是 <code>8.33</code>（第 5 课练习第 3 题）。</li>
-      <li><strong><code>Int</code> 和 <code>Double</code> 混算</strong> → 编译报错。<code>L / N</code> 要写成 <code>L / Double(N)</code>。</li>
-      <li><strong>数组用 <code>let</code> 声明</strong> → 改内容时编译报错。</li>
+      <li><strong>边界墙用了 <code>k</code> 而不是 <code>2k</code></strong> → 仍是一条直线，但 5 个盒子、左墙钉死 10、右墙钉死 0 时得到 <code>8.333 6.667 5.000 3.333 1.667</code>，不是 <code>9 7 5 3 1</code>：等于把两面墙各往外挪了半格。</li>
+      <li><strong>数组只写了 <code>new Array(n)</code>，没有 <code>.fill(0)</code></strong> → 数组里是空位，一参与计算就得到 <code>NaN</code>（英文 Not a Number，「不是一个数」）。<code>NaN &lt; 容差</code> 永远不成立，所以停不下来，打出来全是 <code>NaN</code>。TypeScript 不会替你报这个错。</li>
+      <li><strong>用 <code>for (const i in c)</code> 数下标</strong> → 这样拿到的 <code>i</code> 是字符串 <code>"0"</code>、<code>"1"</code>……，<code>i + 1</code> 得到的是 <code>"01"</code>、<code>"11"</code>，不是 1、2。数下标一律写 <code>for (let i = 0; i &lt; n; i++)</code>。</li>
+      <li><strong>最外层的变量起名叫 <code>closed</code>、<code>top</code>、<code>name</code></strong> → 在网页里的 Playground 上会标红「Cannot redeclare block-scoped variable」（不能重复声明）：浏览器已经有同名的全局变量。换个名字就好，参考答案里用的是 <code>closedWall</code>。</li>
       <li><strong>没有保险丝</strong> → 只要哪里写错，程序就永远转下去，iPad 上的 App 会卡住。</li>
     </ol>
   </section>
 
   <section>
     <h2>五 · 在哪里跑</h2>
-    <p><strong>iPad：</strong>Apple 的免费 App <strong>Swift Playgrounds</strong>。新建一个空白的 playground，把代码贴进去运行，<code>print</code> 的输出在控制台里（具体菜单名以你的 App 版本为准）。</p>
-    <p><strong>Mac：</strong>Xcode 新建 playground，或者在终端里 <code>swift Diffusion1D.swift</code>。</p>
-    <p>我这边的环境装不了 Swift。你贴来代码后，我会逐行读；数值有疑问时，我用同样的逻辑在这边重算一遍来对照。</p>
+    <p><strong>iPad 或任何电脑的浏览器：</strong>TypeScript 官方的在线练习场 Playground（<a href="https://www.typescriptlang.org/play">typescriptlang.org/play</a>）。把代码贴进左边的编辑区，点 Run，<code>console.log</code> 打出来的东西在右边的 Logs 标签里（按钮名以网页为准）。红色波浪线是类型检查报的错，先改掉它们再看输出。</p>
+    <p><strong>电脑上装了 Node：</strong>终端里 <code>node Diffusion1D.ts</code>。Node 22.18 或更新的版本能直接跑 <code>.ts</code> 文件（Node 官方文档这么写，我这边的 Node 22.22 实测可以）。</p>
+    <p>我这边能跑 TypeScript。你贴来代码后，我逐行读，也直接运行一遍对照输出。</p>
   </section>
 
   <section>
     <h2>六 · 写完交什么</h2>
     <ol>
-      <li><code>Diffusion1D.swift</code> 的全文</li>
+      <li><code>Diffusion1D.ts</code> 的全文</li>
       <li>尺子 1–6 的运行输出</li>
-      <li><strong>给下一个插页准备的</strong>：情形甲，盒子数分别取 5、10、20、40，<strong>各扫了几遍</strong>才停？记下这四个数。先别猜为什么，只管量。</li>
+      <li><strong>给下一个插页准备的</strong>：左墙钉死 10、右墙钉死 0，盒子数分别取 5、10、20、40，<strong>各扫了几遍</strong>才停？记下这四个数。先别猜为什么，只管量。</li>
     </ol>
   </section>
 
@@ -165,7 +174,7 @@ case .closed:              // 是不透水的墙
           <button class="opt" type="button" aria-pressed="false">结果全是零</button>
           <button class="opt" type="button" aria-pressed="false">没什么影响</button>
         </div>
-        <p class="fb" hidden data-fb="它会一直记着第一遍那个大改动（情形甲是 6.667），永远不会小于容差，只能等保险丝把循环掐断。这也是保险丝必不可少的原因。"></p>
+        <p class="fb" hidden data-fb="它会一直记着第一遍那个大改动，永远不会小于容差，只能等保险丝把循环掐断。例：5 个盒子，左墙钉死 10，右墙钉死 0，初值全 0，第一遍第 1 个盒子从 0 变成 <code>(2k × 10 + k × 0) / 3k = 6.667</code>，这一遍的最大改动就是 6.667。这也是保险丝必不可少的原因。另外三个选项：停得太早要最大改动偏小，这里只会偏大；结果全是零是新值没写回数组；最大改动一直是 6.667，不可能没影响。"></p>
       </div>
 
       <div class="q" data-answer="0">
@@ -176,18 +185,18 @@ case .closed:              // 是不透水的墙
           <button class="opt" type="button" aria-pressed="false">全缩小百倍</button>
           <button class="opt" type="button" aria-pressed="false">变成平直线</button>
         </div>
-        <p class="fb" hidden data-fb="每一项都乘着同一个 <code>k</code>，<code>k</code> 里有 <code>D</code>，分子分母一起约掉。<code>D</code> 决定多快到稳态，不决定稳态在哪——砖块 8 算随时间的变化时才会看到它起作用。"></p>
+        <p class="fb" hidden data-fb="每一项都乘着同一个 <code>k</code>，<code>k</code> 里有 <code>D</code>，分子分母一起约掉。例：5 个盒子、左墙钉死 10、右墙钉死 0 时，第 1 个盒子是 <code>(2k × 10 + k × 7) / 3k = 9</code>，<code>k</code> 放大 100 倍，分子分母都放大 100 倍，还是 9。<code>D</code> 决定多快到稳态，不决定稳态在哪——砖块 8 算随时间的变化时才会看到它起作用。选全放大或全缩小百倍，是把 <code>D</code> 当成了墨的多少，其实浓度由钉死的墙值定；选变成平直线，是以为扩散快了就会抹平，可两面墙钉死在 10 和 0，稳态还是从 10 降到 0 的斜线。"></p>
       </div>
 
       <div class="q" data-answer="0">
-        <p class="stem">3. 情形甲、5 个盒子，你的程序输出的第一个盒子是 <code>10.000</code>。最可能错在哪？</p>
+        <p class="stem">3. 5 个盒子，左墙钉死 10，右墙钉死 0。你的程序输出的第一个盒子是 <code>10.000</code>。最可能错在哪？</p>
         <div class="opts">
           <button class="opt" type="button" aria-pressed="false">把墙值当盒值</button>
           <button class="opt" type="button" aria-pressed="false">边界少乘了二</button>
           <button class="opt" type="button" aria-pressed="false">改动没有清零</button>
-          <button class="opt" type="button" aria-pressed="false">数组写成常量</button>
+          <button class="opt" type="button" aria-pressed="false">数组没填初值</button>
         </div>
-        <p class="fb" hidden data-fb="10 是左墙上的值，第一个盒子在墙内半格处，应该是 9。多半是直接把 <code>c[0]</code> 设成了左墙的值，没有按方程算它。另外三个选项的症状不一样：边界少乘二会得到 8.33；改动不清零是停不下来；数组写成常量根本编译不过。"></p>
+        <p class="fb" hidden data-fb="10 是左墙上的值，第一个盒子在墙内半格处，应该是 9。多半是直接把 <code>c[0]</code> 设成了左墙的值，没有按方程算它。另外三个选项的症状不一样：边界墙用 <code>k</code> 不用 <code>2k</code>，第一个盒子是 8.333；改动不清零是停不下来；数组没有 <code>.fill(0)</code> 会打出一排 <code>NaN</code>。"></p>
       </div>
 
     </div>
@@ -197,18 +206,16 @@ case .closed:              // 是不透水的墙
     <h2>七 · 参考答案</h2>
     <p>先自己写。写完对照，或者卡住了再打开。</p>
     <details class="answer" id="answer">
-      <summary>展开 Diffusion1D.swift 全文</summary>
+      <summary>展开 Diffusion1D.ts 全文</summary>
       <p>它和第二节的设计一一对应：</p>
       <ul>
-        <li><strong>第 1 段 · 墙的描述</strong>：第三层"数据结构"里那条"墙的描述"，用 <code>enum</code> 写。</li>
-        <li><strong>第 2 段 · 求解器</strong>：第四层那段中文代码结构，逐行翻成 Swift。每一步旁边的注释就是那段中文。</li>
+        <li><strong>第 1 段 · 墙的描述</strong>：第三层"数据结构"里那条"墙的描述"，用联合类型写。<code>fixedWall(10)</code> 造一面钉死 10 的墙，<code>closedWall</code> 是不透水的墙。</li>
+        <li><strong>第 2 段 · 求解器</strong>：第四层那段中文代码结构，逐行翻成 TypeScript。每一步旁边的注释就是那段中文。</li>
         <li><strong>第 3、4 段 · 打印与六把尺子</strong>：求解器写成函数，六把尺子各调用一次。</li>
         <li><strong>第 5 段</strong>：量出盒子数与遍数，给插页 B 用。</li>
       </ul>
-      <pre class="formula"><code>import Foundation
-
-// ============================================================
-// Diffusion1D.swift  —— 砖块 6：一维稳态扩散 + 高斯-塞德尔
+      <pre class="formula"><code>// ============================================================
+// Diffusion1D.ts  —— 砖块 6：一维稳态扩散 + 高斯-塞德尔
 //
 // 物理：一排 N 个盒子，水静止，墨只靠扩散在盒子之间移动。
 //       两端各一面边界墙：钉死浓度的墙，或不透水的墙。求稳态。
@@ -217,132 +224,144 @@ case .closed:              // 是不透水的墙
 //       钉死浓度的墙：  分子 += 2k·C_墙     分母 += 2k     （盒心到墙只有半格）
 //       不透水的墙：    什么都不加
 //       解法：高斯-塞德尔，算出新值立刻写回；最大改动 &lt; 容差 就停。
+// 运行：贴进 TypeScript Playground 点 Run；或在电脑上 node Diffusion1D.ts
+//       （Node 22.18 或更新的版本能直接跑 .ts 文件）。
 // ============================================================
 
 // ===== 1. 墙的描述 =====
-enum Wall {
-    case fixed(Double)   // 钉死浓度的墙，带着墙上的浓度 [kg/m³]
-    case closed          // 不透水的墙
+// 联合类型：一面墙要么是「钉死的，带一个值」，要么是「不透水的，什么都不带」。
+type Wall =
+  | { kind: &quot;fixed&quot;; value: number } // 钉死浓度的墙，带着墙上的浓度 [kg/m³]
+  | { kind: &quot;closed&quot; };              // 不透水的墙
+
+function fixedWall(value: number): Wall {
+  return { kind: &quot;fixed&quot;, value: value };
 }
+const closedWall: Wall = { kind: &quot;closed&quot; };
 
 // ===== 2. 求解器 =====
 // 返回：每个盒子的浓度 [kg/m³]，以及一共扫了几遍。
 // 两面墙都不透水时方程没有唯一解，本程序不处理这种设定。
-func solveDiffusion1D(
-    n: Int,                     // 盒子个数
-    length: Double,             // 全长 L [m]
-    diffusivity: Double,        // 扩散系数 D [m²/s]
-    area: Double,               // 墙的面积 A [m²]
-    left: Wall,
-    right: Wall,
-    initialGuess: Double = 0.0,
-    tolerance: Double = 1e-6,
-    maxSweeps: Int = 100_000    // 保险丝：写错时不至于永远转下去
-) -&gt; (c: [Double], sweeps: Int) {
+function solveDiffusion1D(
+  n: number,             // 盒子个数
+  length: number,        // 全长 L [m]
+  diffusivity: number,   // 扩散系数 D [m²/s]
+  area: number,          // 墙的面积 A [m²]
+  left: Wall,
+  right: Wall,
+  initialGuess = 0.0,
+  tolerance = 1e-6,
+  maxSweeps = 100_000,   // 保险丝：写错时不至于永远转下去
+): { c: number[]; sweeps: number } {
 
-    precondition(n &gt;= 1, &quot;至少要有一个盒子&quot;)
+  if (!Number.isInteger(n) || n &lt; 1) {
+    throw new Error(&quot;至少要有一个盒子&quot;);
+  }
 
-    let dx = length / Double(n)             // 格宽 Δx [m]
-    let k = diffusivity * area / dx         // 内部墙权重 [m³/s]
+  const dx = length / n;                 // 格宽 Δx [m]
+  const k = diffusivity * area / dx;     // 内部墙权重 [m³/s]
 
-    var c = [Double](repeating: initialGuess, count: n)
-    var sweeps = 0
+  const c: number[] = new Array(n).fill(initialGuess);
+  let sweeps = 0;
 
-    while sweeps &lt; maxSweeps {
-        sweeps += 1
-        var maxChange = 0.0                 // 每一遍开头清零
+  while (sweeps &lt; maxSweeps) {
+    sweeps += 1;
+    let maxChange = 0.0;                 // 每一遍开头清零
 
-        for i in 0..&lt;n {
-            var numerator = 0.0             // 分子
-            var denominator = 0.0           // 分母
+    for (let i = 0; i &lt; n; i++) {
+      let numerator = 0.0;               // 分子
+      let denominator = 0.0;             // 分母
 
-            // 看左边：是邻居还是边界墙
-            if i &gt; 0 {
-                numerator += k * c[i - 1]
-                denominator += k
-            } else {
-                switch left {
-                case .fixed(let value):
-                    numerator += 2.0 * k * value
-                    denominator += 2.0 * k
-                case .closed:
-                    break
-                }
-            }
-
-            // 看右边：和看左边是两个独立的判断（只有一个盒子时，两边都是墙）
-            if i &lt; n - 1 {
-                numerator += k * c[i + 1]
-                denominator += k
-            } else {
-                switch right {
-                case .fixed(let value):
-                    numerator += 2.0 * k * value
-                    denominator += 2.0 * k
-                case .closed:
-                    break
-                }
-            }
-
-            let newValue = numerator / denominator
-            maxChange = max(maxChange, abs(newValue - c[i]))
-            c[i] = newValue                 // 就地写回：后面的盒子马上用上新值
+      // 看左边：是邻居还是边界墙
+      if (i &gt; 0) {
+        numerator += k * c[i - 1];
+        denominator += k;
+      } else {
+        switch (left.kind) {
+          case &quot;fixed&quot;:
+            numerator += 2.0 * k * left.value;
+            denominator += 2.0 * k;
+            break;
+          case &quot;closed&quot;:
+            break;
         }
+      }
 
-        if maxChange &lt; tolerance {
-            break
+      // 看右边：和看左边是两个独立的判断（只有一个盒子时，两边都是墙）
+      if (i &lt; n - 1) {
+        numerator += k * c[i + 1];
+        denominator += k;
+      } else {
+        switch (right.kind) {
+          case &quot;fixed&quot;:
+            numerator += 2.0 * k * right.value;
+            denominator += 2.0 * k;
+            break;
+          case &quot;closed&quot;:
+            break;
         }
+      }
+
+      const newValue = numerator / denominator;
+      maxChange = Math.max(maxChange, Math.abs(newValue - c[i]));
+      c[i] = newValue;                   // 就地写回：后面的盒子马上用上新值
     }
 
-    return (c: c, sweeps: sweeps)
+    if (maxChange &lt; tolerance) {
+      break;
+    }
+  }
+
+  return { c: c, sweeps: sweeps };
 }
 
 // ===== 3. 打印 =====
-func report(_ title: String, _ result: (c: [Double], sweeps: Int)) {
-    let values = result.c.map { String(format: &quot;%.3f&quot;, $0) }.joined(separator: &quot; &quot;)
-    print(&quot;\(title)：\(values)   （扫了 \(result.sweeps) 遍）&quot;)
+function report(title: string, result: { c: number[]; sweeps: number }): void {
+  const values = result.c.map((v) =&gt; v.toFixed(3)).join(&quot; &quot;);
+  console.log(`${title}：${values}   （扫了 ${result.sweeps} 遍）`);
 }
 
 // ===== 4. 第 6 课的六把验收尺子 =====
-let L = 0.1        // 全长 [m]
-let D = 1e-9       // 墨在水里的扩散系数 [m²/s]
-let A = 1e-4       // 墙面积 1 cm² [m²]
+const L = 0.1;     // 全长 [m]
+const D = 1e-9;    // 墨在水里的扩散系数 [m²/s]
+const A = 1e-4;    // 墙面积 1 cm² [m²]
 
-report(&quot;尺子 1 · 情形甲 N=5 &quot;, solveDiffusion1D(n: 5,  length: L, diffusivity: D,       area: A, left: .fixed(10), right: .fixed(0)))
-report(&quot;尺子 2 · 情形乙 N=5 &quot;, solveDiffusion1D(n: 5,  length: L, diffusivity: D,       area: A, left: .fixed(10), right: .closed))
-report(&quot;尺子 3 · 平场   N=5 &quot;, solveDiffusion1D(n: 5,  length: L, diffusivity: D,       area: A, left: .fixed(5),  right: .fixed(5)))
-report(&quot;尺子 4 · D 放大百倍 &quot;, solveDiffusion1D(n: 5,  length: L, diffusivity: 100 * D, area: A, left: .fixed(10), right: .fixed(0)))
-report(&quot;尺子 5 · N=1        &quot;, solveDiffusion1D(n: 1,  length: L, diffusivity: D,       area: A, left: .fixed(10), right: .fixed(0)))
-report(&quot;尺子 6 · N=10       &quot;, solveDiffusion1D(n: 10, length: L, diffusivity: D,       area: A, left: .fixed(10), right: .fixed(0)))
+// 参数顺序：盒子数, 全长, 扩散系数, 墙面积, 左墙, 右墙
+report(&quot;尺子 1 · N=5  左钉死 10 右钉死 0&quot;, solveDiffusion1D(5,  L, D,       A, fixedWall(10), fixedWall(0)));
+report(&quot;尺子 2 · N=5  左钉死 10 右不透水&quot;, solveDiffusion1D(5,  L, D,       A, fixedWall(10), closedWall));
+report(&quot;尺子 3 · N=5  两面都钉死 5     &quot;, solveDiffusion1D(5,  L, D,       A, fixedWall(5),  fixedWall(5)));
+report(&quot;尺子 4 · 同尺子 1，D 放大百倍  &quot;, solveDiffusion1D(5,  L, 100 * D, A, fixedWall(10), fixedWall(0)));
+report(&quot;尺子 5 · N=1  左钉死 10 右钉死 0&quot;, solveDiffusion1D(1,  L, D,       A, fixedWall(10), fixedWall(0)));
+report(&quot;尺子 6 · N=10 左钉死 10 右钉死 0&quot;, solveDiffusion1D(10, L, D,       A, fixedWall(10), fixedWall(0)));
 
 // ===== 5. 给插页 B：盒子数与遍数 =====
-print(&quot;&quot;)
-print(&quot;情形甲，盒子数与遍数：&quot;)
-for n in [5, 10, 20, 40] {
-    let r = solveDiffusion1D(n: n, length: L, diffusivity: D, area: A, left: .fixed(10), right: .fixed(0))
-    print(&quot;N = \(n)：\(r.sweeps) 遍&quot;)
+console.log(&quot;&quot;);
+console.log(&quot;左钉死 10、右钉死 0，盒子数与遍数：&quot;);
+for (const n of [5, 10, 20, 40]) {
+  const r = solveDiffusion1D(n, L, D, A, fixedWall(10), fixedWall(0));
+  console.log(`N = ${n}：${r.sweeps} 遍`);
 }</code></pre>
       <p><strong>运行后应该看到：</strong></p>
-      <pre class="formula"><code>尺子 1 · 情形甲 N=5 ：9.000 7.000 5.000 3.000 1.000   （扫了 37 遍）
-尺子 2 · 情形乙 N=5 ：10.000 10.000 10.000 10.000 10.000   （扫了 115 遍）
-尺子 3 · 平场   N=5 ：5.000 5.000 5.000 5.000 5.000   （扫了 38 遍）
-尺子 4 · D 放大百倍 ：9.000 7.000 5.000 3.000 1.000   （扫了 37 遍）
-尺子 5 · N=1        ：5.000   （扫了 2 遍）
-尺子 6 · N=10       ：9.500 8.500 7.500 6.500 5.500 4.500 3.500 2.500 1.500 0.500   （扫了 133 遍）
+      <pre class="formula"><code>尺子 1 · N=5  左钉死 10 右钉死 0：9.000 7.000 5.000 3.000 1.000   （扫了 37 遍）
+尺子 2 · N=5  左钉死 10 右不透水：10.000 10.000 10.000 10.000 10.000   （扫了 115 遍）
+尺子 3 · N=5  两面都钉死 5     ：5.000 5.000 5.000 5.000 5.000   （扫了 38 遍）
+尺子 4 · 同尺子 1，D 放大百倍  ：9.000 7.000 5.000 3.000 1.000   （扫了 37 遍）
+尺子 5 · N=1  左钉死 10 右钉死 0：5.000   （扫了 2 遍）
+尺子 6 · N=10 左钉死 10 右钉死 0：9.500 8.500 7.500 6.500 5.500 4.500 3.500 2.500 1.500 0.500   （扫了 133 遍）
 
-情形甲，盒子数与遍数：
+左钉死 10、右钉死 0，盒子数与遍数：
 N = 5：37 遍
 N = 10：133 遍
 N = 20：480 遍
 N = 40：1705 遍</code></pre>
-      <p>说明：我这边的环境装不了 Swift，这份代码没法在我这里编译。我把同样的逻辑——同样的运算顺序、同样的停止位置、同样保留三位小数——逐行搬到 Python 里跑过，输出就是上面这些。你在 iPad 上如果遇到编译报错，把报错原文贴给我。</p>
+      <p>说明：这份代码我在这边用 Node 22.22 实际跑过，上面就是它的原样输出；也用 TypeScript 的严格模式做过类型检查（带上浏览器自带的全局名，和 Playground 一样），没有报错。它是原来 Swift 版参考答案的逐行翻译，遍数和插页 B 用的那几个数（37、133、480、1705）一样。</p>
       <p>看懂之后，建议<strong>第 7 课的二维版自己写</strong>：只要在这份代码上把"看左、看右"扩成"看左、看右、看下、看上"，数组换成二维。那一课默认不给答案，要答案就再说一声「打个样」。</p>
     </details>
   </section>
 
   <footer>
     <p><strong>下一步：</strong>你把代码和输出贴过来，我点评。然后是插页 B —— 从你量出来的那四个遍数讲起：为什么盒子翻倍，要扫的遍数涨得比翻倍还快。</p>
-    <p><strong>主要参考：</strong>Apple 官方的 <a href="https://docs.swift.org/swift-book/"><em>The Swift Programming Language</em></a>，只读两章：<strong>The Basics</strong>（常量变量、类型、数组）和 <strong>Enumerations</strong>（带值的 enum 与 switch）。</p>
+    <p><strong>主要参考：</strong>TypeScript 官方手册 <em>The TypeScript Handbook</em>，只读两章：<a href="https://www.typescriptlang.org/docs/handbook/2/everyday-types.html"><strong>Everyday Types</strong></a>（基本类型、数组、函数）和 <a href="https://www.typescriptlang.org/docs/handbook/2/narrowing.html"><strong>Narrowing</strong></a>（联合类型与按 <code>kind</code> 判断）。</p>
     <p><strong>卡住了就回到对话里问我</strong>——编译报错时，把报错原文整段贴过来，比描述快得多。</p>
   </footer>
 

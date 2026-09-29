@@ -14,8 +14,21 @@
   FVM 的标准入门教材，控制体记账讲得最平实。
   用于：砖块 1–10 的传统教科书对照版本。注意：它的扩散章节以热传导为例，与本工作区的"水和墨水"口径不同，读时自行换皮。
 
+- [TypeScript 官方手册 *The TypeScript Handbook*](https://www.typescriptlang.org/docs/handbook/2/everyday-types.html)
+  用于：2026-09-29 起代码改用 TypeScript。第 6、7 课只需要 **Everyday Types**（基本类型、数组、函数）与
+  [**Narrowing**](https://www.typescriptlang.org/docs/handbook/2/narrowing.html)（联合类型、按 `kind` 判断）两章。
+  在线练习场 Playground：https://www.typescriptlang.org/play （学习者在 iPad 浏览器里跑代码用它）。
+  ⚠ 本会话网络策略对 typescriptlang.org 返回 403，链接未能核实，按官方长期使用的地址记录。
+
+- [MDN：Array.prototype.fill](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Array/fill)
+  用于：第 7 课「`fill` 放进每一格的是同一个对象，用它建二维表会让所有行共用一个数组」。⚠ 同样返回 403，未能核实。
+
+- [Node.js 文档：Modules: TypeScript](https://nodejs.org/api/typescript.html)（已核实）
+  用于：学习者在电脑上 `node x.ts` 直接跑。文档的版本记录：v22.18.0、v23.6.0 起默认开启「去类型」（type stripping）；
+  它只删掉类型、不改写语法，所以 `enum` 这类要改写的写法会报错。
+
 - [Apple, *The Swift Programming Language*（官方语言指南，免费在线）](https://docs.swift.org/swift-book/)
-  用于：写 Swift 求解器时查语法。第 6 课只需要 **The Basics**（常量变量、类型、数组）与 **Enumerations**
+  （存档：2026-09-29 前第 6 课用 Swift 时的参考。）用于：写 Swift 求解器时查语法。第 6 课只需要 **The Basics**（常量变量、类型、数组）与 **Enumerations**
   （带值的 enum 与 switch）两章。⚠ 本会话网络策略对 docs.swift.org 返回 403，链接未能核实，按官方长期使用的根地址记录。
 
 - [Briggs, Henson & McCormick (2000), *A Multigrid Tutorial*, 2nd ed.（SIAM）](https://epubs.siam.org/doi/book/10.1137/1.9780898719505)
@@ -73,6 +86,6 @@
 
 - **缺一个中文的、以「水和墨水」为主线的一手来源。** 目前所有高质量来源都用热传导或动量作为扩散的例子，
   与本工作区的口径不一致，只能由我转译。
-- **缺 Swift 实现 CFD 的参考。** 现有教学代码是 Matlab（uFVM）和 C++（OpenFOAM）。
-  Swift 侧只能靠本仓库自己的 `code/` 与 `ipad-cfd-teaching/main` 上的 FoamMini。
+- **缺 TypeScript（以及 Swift）实现 CFD 的参考。** 现有教学代码是 Matlab（uFVM）和 C++（OpenFOAM）。
+  只能靠本仓库自己的 `code/`（2026-09-29 起是 TypeScript）与 `ipad-cfd-teaching/main` 上的 FoamMini（Swift）。
 - **缺一个能交互跑的一维扩散可视化**用于建立直觉。`lessons/` 里的计算器是临时替代。

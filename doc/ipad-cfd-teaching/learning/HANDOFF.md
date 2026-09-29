@@ -1,6 +1,7 @@
-# 交接说明：CFD 学习阶梯，截至插页 C
+# 交接说明：CFD 学习阶梯，截至第 7 课开始
 
-> 写于 2026-09-29，出自会话 `session_015Jk9J73ix6BRyxs31T8ExB`（claude.ai/code）。
+> 写于 2026-09-29，出自会话 `session_015Jk9J73ix6BRyxs31T8ExB`（claude.ai/code）；
+> 同日在会话 `session_01XKDJxT6K12tcoY8mDpNhDH` 更新：代码改用 TypeScript，开始第 7 课。
 > 给新对话用：**先读这份，再读 `NOTES.md`（硬约束），然后再开口。**
 > 分支：`openfoam-learning/main`。不要新建 `claude/*` 分支，新产出一律提交到这个分支。
 > 本文件里每个例子都写全了条件；引用时照抄条件，不要只写代号（NOTES 第 15 条）。
@@ -9,9 +10,9 @@
 
 ## 一、学习者和目标
 
-- **目标**（`MISSION.md`）：用 Swift 从零写出一个和 OpenFOAM 的 icoFoam 等价的求解器，算顶盖驱动方腔（cavity），
-  再把整条推导路径做成 iPad 教学 App。
-- **学习者**：会编程，Swift 语法不熟；CFD 和数值方法零基础；懂统计力学（知道"微团 = 大量分子的集合"）。
+- **目标**（`MISSION.md`）：从零写出一个和 OpenFOAM 的 icoFoam 等价的求解器，算顶盖驱动方腔（cavity），
+  再把整条推导路径做成 iPad 教学 App。原计划用 Swift；**2026-09-29 起代码先用 TypeScript**（学习者要求）。
+- **学习者**：会编程，Swift 语法不熟，代码用 TypeScript；CFD 和数值方法零基础；懂统计力学（知道"微团 = 大量分子的集合"）。
 - **另一门课**：AImimiEngine 的流体模拟课程（Stable Fluids → 3D FLIP）。第 1 课读过；
   第 2 课「数值耗散：峰值去哪了」（约 25 分钟）暂停。**走到砖块 10 时必须提醒他回去读**，
   同时把 `crosswalk-stable-fluids.md` 里标 🔒 砖块 10 的第 6、7、14 行改成 ✅，并答掉那里挂起的 CFL = 1.5 那题。
@@ -36,6 +37,8 @@
 14. 每个论断都要能被跟着算一遍：结论前面必须有代数推导，或能逐位核对的手算。只有结论加一两个数字 = 汇报，不是教学。
 15. **提到之前的任何内容，当场写全**：例子的条件、做法、公式都要写出来；不写「按第 5 课的办法」「前面说过」「情形甲」这类要他回忆的话。
 16. **表格不能代替计算过程**：表格里的数要给出算式。「碰巧对」的事不能写成推理。
+17. **代码一律先用 TypeScript**（2026-09-29 起），不用 Swift。教学用的代码在这边用 `node x.ts` 实跑，
+    `tsc --noEmit --strict --target es2022 --lib es2022,dom x.ts` 做类型检查（带 dom，和 Playground 一样）。
 
 他最反感的三件事（都发生过，都被当场指出）：只给结论不给推导；引用前面的内容却不写细节；一条消息塞太多新东西。
 
@@ -101,12 +104,16 @@
 - OpenFOAM：cavity 的 `system/fvSolution` 里速度 U 用 `smoothSolver` + `symGaussSeidel`，`tolerance 1e-05`；
   实际代码 `src/OpenFOAM/matrices/lduMatrix/smoothers/symGaussSeidel/symGaussSeidelSmoother.C`。
 
-### 第 6 课（砖块 6）· 你的第一个求解器 `Diffusion1D.swift`
+### 第 6 课（砖块 6）· 你的第一个求解器 `Diffusion1D.ts`
 
-链接：https://claude.ai/artifact/2wqwt5aWVayNKfGth45wSv
+链接：https://claude.ai/artifact/2wqwt5aWVayNKfGth45wSv （第 3 版，2026-09-29 代码部分改成 TypeScript）
 
-- 学习者要求看参考答案（算「打个样」），已折叠放在第 6 课第七节，源码 `code/Diffusion1D.swift`。
-  环境里没有 Swift 编译器，代码没编译过；逻辑用 Python 逐行照搬验证过。
+- 学习者要求看参考答案（算「打个样」），已折叠放在第 6 课第七节，源码 `code/Diffusion1D.ts`：
+  由原来的 Swift 版（存档 `code/Diffusion1D.swift`）逐行翻译，Node 22.22 实跑、tsc 严格模式检查过，输出和 Swift 版一致。
+- 第三、四、五节改成 TypeScript：`const/let`、`number`、`new Array(n).fill(0)`、联合类型 `Wall` 加 `switch`（别漏 `break`）；
+  易错点新增：不 fill 得 NaN 停不下来、`for…in` 拿到字符串下标、最外层变量叫 `closed`/`top`/`name` 在 Playground 里标红；
+  在哪里跑：TypeScript Playground（iPad 浏览器）或 Node 22.18 起 `node Diffusion1D.ts`。
+- 同时按第 15 条把尺子表里的「情形甲」「情形乙」换成写全的条件，练习解释补上每个错误选项对应的错。
 - 六把尺子（都是：一根管等分成 N 个盒子，内部墙 k，边界墙 2k，初值全 0，容差 1e-6，高斯-塞德尔）：
 
 | # | 条件 | 期望输出 | 遍数 |
@@ -121,18 +128,26 @@
 - 同样条件（左 10 右 0），盒子数 5、10、20、40 分别扫 37、133、480、1705 遍（插页 B 的起点）。
 - 第 6 课练习结果学习者没报。
 
-### 第 7 课（砖块 7）· 从一排到一片 `Diffusion2D.swift`
+### 第 7 课（砖块 7）· 从一排到一片 `Diffusion2D.ts`
 
-链接：https://claude.ai/artifact/4JyDMiyxgvkRemBQBBbMXr
+链接：https://claude.ai/artifact/4JyDMiyxgvkRemBQBBbMXr （第 3 版，2026-09-29 整课改成 TypeScript，并按第 15、16 条补全引用）
 
 - 二维稳态，每个盒子四个方向各自判断「是邻居还是墙」（不能写成 if … else if 链）。下标约定 `c[j][i]`，j 行（y，往上数）、i 列（x）。
-- 五把尺子（都用 5 × 5，正方形格子，内部墙 k，边界墙 2k）：
-  一、左墙钉死 10、右墙钉死 0、上下不透水 ⇒ 每一行都是 9、7、5、3、1；
-  二、四面都钉死 5 ⇒ 全是 5；
-  三、左墙钉死 10、另三面钉死 0 ⇒ 上下对称（第 0 行 = 第 4 行，第 1 行 = 第 3 行）；
-  四、上墙钉死 10、另三面钉死 0 ⇒ 正中心是 2.5（四个转了 90° 的问题叠加成四面都是 10 的平场，4x = 10）；
+- 建表 `Array.from({ length: n }, () => new Array(n).fill(0))`；`new Array(n).fill(new Array(n).fill(0))` 让所有行共用一个数组。
+- 五把尺子（都用 5 × 5，正方形格子，内部墙 k，边界墙 2k，初值全 0，容差 1e-6，一行一行扫；遍数是这边实跑的）：
+  一、左墙钉死 10、右墙钉死 0、上下不透水 ⇒ 每一行都是 9、7、5、3、1（66 遍；一维 37 遍。第一遍 c[0][0] 被上面还是 0 的
+      第 1 行拉低：(2k × 10 + k × 0 + k × 0) / 4k = 5.000，一维 (2k × 10 + k × 0) / 3k = 6.667）；
+  二、四面都钉死 5 ⇒ 全是 5（39 遍）；
+  三、左墙钉死 10、另三面钉死 0 ⇒ 上下对称（第 0 行 = 第 4 行，第 1 行 = 第 3 行），中心 2.5（36 遍）；
+  四、上墙钉死 10、另三面钉死 0 ⇒ 正中心 2.5（四个转了 90° 的问题叠加成四面都是 10 的平场，4x = 10；
+      课文第五节把左上角盒子在四道题里的方程逐列相加写出来了），每行左右对称（38 遍）；
   五、所有值落在最低和最高的墙值之间。
-- **学习者还没写** `Diffusion2D.swift`。不给答案，除非他说「打个样」。第 7 课练习结果没报。
+- 课文还写了：一维答案 9、7、5、3、1 代回更新式的五行算式；解唯一（两组解相减、墙变 0、极值原理）；
+  按「在哪条边上」写 if … else if 链时尺子四中心变成 2.182（这边实跑）。
+- 练习 5 题：右上角（右墙钉死、上墙不透水）分母 4k；尺子四第一遍 c[4][0] = 20k / 6k = 3.333；7 × 7 上 8 中心 2.0；
+  求解用 c[i][j]、打印用 c[j][i] 时最后一行是 9 9 9 9 9；fill 共用一行时尺子三五行一样、扫满 100000 遍停不下来，
+  尺子一照样得 9 7 5 3 1（20 遍），所以尺子一抓不住。
+- **学习者还没写** `Diffusion2D.ts`。不给答案，除非他说「打个样」。第 7 课练习结果没报。
 
 ### 插页 B · 越细越慢
 
@@ -164,7 +179,7 @@
 
 ### 插页 C · 多重网格
 
-链接：https://claude.ai/artifact/5DBRkwsiKCBoCYbggxMjYK （第 3 版）。学习者正在读第二节。
+链接：https://claude.ai/artifact/5DBRkwsiKCBoCYbggxMjYK 。第二节已过（见第四节）；页脚已改成写 `Diffusion2D.ts`。
 
 - 分工：细网格只管锯齿（每遍剩 1/3），粗网格只管平缓（格子少，每遍磨掉多：N = 5 时每遍剩 0.6667，N = 80 时剩 0.9985）。
 - **残差** = 用现在的值算出来的净流入 = `Σ w × (C_对面 − C_P)`（单位 kg/s）；**误差** = 现在的值 − 答案（单位 kg/m³）。
@@ -191,7 +206,7 @@
 
 ## 四、学习者现在在哪、卡在哪
 
-- 通过：砖块 1–5、插页 A。第 6、7 课、插页 B、插页 C 的练习结果都**没报**。`Diffusion2D.swift` 没写。
+- 通过：砖块 1–5、插页 A、插页 C 第二节。第 6、7 课、插页 B、插页 C 的练习结果都**没报**。`Diffusion2D.ts` 没写。
 - 已知的混淆：
   - 钉死成 0 和不透水分不清（LR-0007）。
   - 钉死成 0 的墙在分母里：**已掌握**（2026-09-28 的检查题左墙写对了）。
@@ -254,13 +269,18 @@
   正确：`R_1 = 2k × (10 − 6) + k × (6 − 6) = 8k`；`R_2 = k × (6 − 6) = 0`（右墙不透水，不写）。
   若他给 2 号加了 `2k × (0 − 6)` 得 −12k，说明还把不透水当成钉死 0。
   核对：误差 −4、−4，1 号误差的净流入 `2k × (0 − (−4)) + k × (−4 − (−4)) = 8k`，与残差相等。
+- **2026-09-29（会话 `session_01XKDJxT6K12tcoY8mDpNhDH`，和上面几条所在的对话并行）**：我按旧交接先问他第四节那些回答
+  哪里还不通；他没答，改说「开始第 7 课」，并要求「以后的代码先不要用 swift，先用 ts」。已做：第 6 课代码部分、
+  第 7 课整课改成 TypeScript，发布到原链接；插页 C 页脚的文件名改成 `Diffusion2D.ts`；NOTES 工作约定、MISSION、README
+  记下改用 TypeScript。插页 C 第三节那道并盒子的题（「残差 ÷ 分母题」那一条末尾出的：5 个盒子、左墙钉死 10、右墙钉死 0、
+  内部墙 k、边界墙 2k，扫一遍后 6.667、3.333、…，把 1、2 号并成大盒子，两个残差相加是否等于直接算大盒子外墙）还没答。
 
 ---
 
 ## 五、下一步
 
-1. 先确认他看懂了第四节那五条回答（别重讲一遍，问他哪里还不通），再出上面的检查题。
-2. 他读完插页 C、做完练习 → 回砖块 7，他自己写 `Diffusion2D.swift`，写完发来点评（按第 7 课五把尺子验）。
+1. 他读第 7 课、做练习、写 `Diffusion2D.ts`，发来代码和输出 → 在这边用 node 直接跑，按第 7 课五把尺子点评。
+2. 插页 C 第三节那道并盒子的题（两个残差相加 3.333k + 1.667k = 5k，与直接算大盒子两面外墙的 5k 相等），他想回去做时再接。
 3. 砖块 8（滴一滴墨看它随时间散开，显式）→ 砖块 9（隐式）→ 砖块 10（水流推着墨走，对流；⏰ AImimiEngine 提醒）。
 4. 共轭梯度（CG / PCG）挪到砖块 11 之前讲（cavity 的压力用 PCG）→ 砖块 11（PISO，icoFoam 的 cavity）。
 
@@ -274,16 +294,19 @@
 | `NOTES.md` | 教学硬约束（第二节的全文） |
 | `MISSION.md` | 为什么学、什么算成功 |
 | `formula-cheatsheet.md` | 重走中已讲透的公式与累积验收尺子 |
-| `learning-records/0001–0014` | 每次确认掌握或出事的记录 |
+| `learning-records/0001–0015` | 每次确认掌握或出事的记录 |
 | `lessons/*.html` | 课的源文件（第 4 课起），共享 `assets/lesson.css`、`assets/quiz.js` |
 | `tools/build_artifact.py` | 把课的源文件打包成可发布的单页 |
-| `code/Diffusion1D.swift` | 第 6 课参考答案（没编译过，Python 验证过） |
+| `code/Diffusion1D.ts` | 第 6 课参考答案（TypeScript，Node 实跑、tsc 严格检查过） |
+| `code/Diffusion1D.swift` | 第 6 课参考答案的 Swift 版（存档；没编译过，Python 验证过） |
 | `crosswalk-stable-fluids.md` | 与另一门课的对照，🔒 行走到对应砖块再打开 |
 | `GLOSSARY.md`、`RESOURCES.md`、`diffusion-notes.md`、`bc-and-dimensions.md` | 用语、资料、上一轮的扩散笔记、边界条件参考手册（不是课） |
 
 - 发布课：`python3 tools/build_artifact.py lessons/X.html <scratchpad>/lesson-NN-xxx.html`，再用 Artifact 工具发布。
   更新已有的课：新对话不能靠「同一路径」保住链接，要把上面的链接作为 `url` 传进去。
-- 每个要教的数字，先用 Python 算一遍（环境里没有 Swift）。
+- 每个要教的数字先算一遍：和代码有关的直接写成 TypeScript 用 `node` 跑（环境里有 Node 22.22、tsc），其余可以用 Python。
+- 这个环境的网络策略挡住了 typescriptlang.org 和 developer.mozilla.org（代理返回 403），课里指向它们的链接没法在这边核实；
+  nodejs.org 能访问（Node 直接跑 .ts 的版本说明就是从那里核对的）。
 - 提交：说明写进文件，用 `git commit -F 文件`（不要 printf，会吃掉 %）；结尾带会话要求的署名行。推到 `openfoam-learning/main`。
 
 ---
@@ -294,8 +317,7 @@
 先执行：git fetch origin && git checkout -B openfoam-learning/main origin/openfoam-learning/main
 本会话直接在该分支上工作并推送，不要新建 claude/* 分支。
 
-先读 doc/ipad-cfd-teaching/learning/HANDOFF.md（交接说明，截至插页 C），再读同目录的 NOTES.md（硬约束）。
-我正在读插页 C 第二节（残差和误差），上一个对话最后一次问答和挂着的检查题都在 HANDOFF.md 第四节。
-先问我第四节那五条回答还有哪里不通，不要从头重讲。
-提到之前的任何内容，把条件、做法、公式当场写全；表格里的数要给算式。
+先读 doc/ipad-cfd-teaching/learning/HANDOFF.md（交接说明，截至第 7 课开始），再读同目录的 NOTES.md（硬约束）。
+我在读第 7 课（TypeScript 版），要写 Diffusion2D.ts；进度和挂着的题在 HANDOFF.md 第四、五节。
+代码一律用 TypeScript。提到之前的任何内容，把条件、做法、公式当场写全；表格里的数要给算式。
 ```
