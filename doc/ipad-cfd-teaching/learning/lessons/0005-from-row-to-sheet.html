@@ -153,11 +153,12 @@ else                  { 四个邻居 }</code></pre>
 
   <section>
     <h2>五 · 尺子四：不解方程就知道中心是 2.5</h2>
-    <p>上墙钉死 10、另外三面钉死 0，正中心的盒子是多少？把它和另外三道题放在一起看。四道题都是 5 × 5、内部墙 <code>k</code>、边界墙 <code>2k</code>，只差哪一面墙是 10：</p>
-    <pre class="formula"><code>上 10 题：上墙 10，左、右、下墙 0      它的解（一张 5 × 5 的表）记作 T
-右 10 题：右墙 10，另外三面 0          解记作 R
-下 10 题：下墙 10，另外三面 0          解记作 B
-左 10 题：左墙 10，另外三面 0          解记作 L</code></pre>
+    <p>上墙钉死 10、另外三面钉死 0，正中心的盒子是多少？把它和另外三道题放在一起看。四道题都是 5 × 5、内部墙 <code>k</code>、边界墙 <code>2k</code>，四面墙里<strong>只有一面钉死 10</strong>，另外三面钉死 0；四道题的差别只在<strong>哪一面</strong>是 10。下面按那面墙给每道题起名：「上 10 题」就是"上墙钉死 10、左右下三面钉死 0"的那一道，也就是尺子四本身；「左 10 题」就是尺子三。</p>
+    <pre class="formula"><code>名字        四面墙                                    它的解（一张 5 × 5 的表）
+上 10 题    上墙 10；左墙 0、右墙 0、下墙 0          记作 T（尺子四）
+右 10 题    右墙 10；左墙 0、上墙 0、下墙 0          记作 R
+下 10 题    下墙 10；左墙 0、右墙 0、上墙 0          记作 B
+左 10 题    左墙 10；右墙 0、上墙 0、下墙 0          记作 L（尺子三）</code></pre>
     <figure>
       <svg viewBox="0 0 600 170" role="img" aria-label="四个正方形，分别只有上、右、下、左一面墙钉死 10，四个相加等于四面都钉死 10 的正方形">
         <g font-size="13" fill="var(--ink)">
@@ -397,7 +398,220 @@ N = 40：1705 遍</code></pre>
   </section>
 
   <section>
-    <h2>九 · 写完交什么</h2>
+    <h2>九 · 参考答案：Diffusion2D.ts</h2>
+    <p>你要求直接给出全文（2026-10-01）。它就是第八节那份一维程序改出来的，改的地方正好是第二节那张表：数组换成表 <code>c[j][i]</code>；"看左、看右"扩成"看左、看右、看下、看上"四个独立的判断；墙从两面变成四面（放进 <code>Walls</code>）；打印从最上面一行往下打。另外把"一面边界墙怎么加"抽成了 <code>addWall</code>，四面墙共用，免得同一段 <code>switch</code> 写四遍。</p>
+    <details class="answer" id="answer2d">
+      <summary>展开 Diffusion2D.ts 全文</summary>
+      <pre class="formula"><code>// ============================================================
+// Diffusion2D.ts  —— 砖块 7：二维稳态扩散 + 高斯-塞德尔
+//
+// 物理：一片 n × n 个正方形盒子，水静止，墨只靠扩散在盒子之间移动。
+//       四周四面边界墙：钉死浓度的墙，或不透水的墙。求稳态。
+// 数学：每个盒子一条方程  C_P = 分子 / 分母，四个方向各自判断「是邻居还是墙」
+//       内部墙：        分子 += k·C_邻居    分母 += k      k = D·A/Δx（正方形格子，四个方向同一个 k）
+//       钉死浓度的墙：  分子 += 2k·C_墙     分母 += 2k     （盒心到墙只有半格）
+//       不透水的墙：    什么都不加
+//       解法：高斯-塞德尔，一行一行扫，算出新值立刻写回；最大改动 &lt; 容差 就停。
+// 下标：c[j][i]，j = 第几行（y，往上数），i = 第几列（x，往右数）。
+// 运行：贴进 TypeScript Playground 点 Run；或在电脑上 node Diffusion2D.ts
+//       （Node 22.18 或更新的版本能直接跑 .ts 文件）。
+// ============================================================
+
+// ===== 1. 墙的描述（和一维一样） =====
+type Wall =
+  | { kind: &quot;fixed&quot;; value: number } // 钉死浓度的墙，带着墙上的浓度 [kg/m³]
+  | { kind: &quot;closed&quot; };              // 不透水的墙
+
+function fixedWall(value: number): Wall {
+  return { kind: &quot;fixed&quot;, value: value };
+}
+const closedWall: Wall = { kind: &quot;closed&quot; };
+
+// 四面墙放在一起（不在最外层用 top 这个名字：浏览器里已经有全局变量 top）
+type Walls = { left: Wall; right: Wall; bottom: Wall; top: Wall };
+
+// 一面边界墙对分子、分母的贡献：钉死的加 2k，不透水的什么都不加
+function addWall(wall: Wall, k: number, acc: { numerator: number; denominator: number }): void {
+  switch (wall.kind) {
+    case &quot;fixed&quot;:
+      acc.numerator += 2.0 * k * wall.value;
+      acc.denominator += 2.0 * k;
+      break;
+    case &quot;closed&quot;:
+      break;
+  }
+}
+
+// ===== 2. 求解器 =====
+// 返回：每个盒子的浓度 c[j][i] [kg/m³]，以及一共扫了几遍。
+// 四面墙都不透水时方程没有唯一解，本程序不处理这种设定。
+function solveDiffusion2D(
+  n: number,             // 每边的盒子个数（一共 n × n 个）
+  length: number,        // 边长 L [m]
+  diffusivity: number,   // 扩散系数 D [m²/s]
+  area: number,          // 一道墙的面积 A [m²]
+  walls: Walls,
+  initialGuess = 0.0,
+  tolerance = 1e-6,
+  maxSweeps = 100_000,   // 保险丝
+): { c: number[][]; sweeps: number } {
+
+  if (!Number.isInteger(n) || n &lt; 1) {
+    throw new Error(&quot;每边至少要有一个盒子&quot;);
+  }
+
+  const dx = length / n;                 // 格宽 Δx = Δy [m]
+  const k = diffusivity * area / dx;     // 内部墙权重 [m³/s]
+
+  // 每一行都是新造的数组；不能写 new Array(n).fill(new Array(n).fill(...))，那样所有行是同一个数组
+  const c: number[][] = Array.from({ length: n }, () =&gt; new Array(n).fill(initialGuess));
+  let sweeps = 0;
+
+  while (sweeps &lt; maxSweeps) {
+    sweeps += 1;
+    let maxChange = 0.0;                 // 每一遍开头清零
+
+    for (let j = 0; j &lt; n; j++) {        // 外层：行，从下往上
+      for (let i = 0; i &lt; n; i++) {      // 内层：列，从左往右
+        const acc = { numerator: 0.0, denominator: 0.0 };
+
+        // 四个互相独立的判断，不是 if … else if 链（角上的盒子要碰到两面墙）
+        // 看左
+        if (i &gt; 0) {
+          acc.numerator += k * c[j][i - 1];
+          acc.denominator += k;
+        } else {
+          addWall(walls.left, k, acc);
+        }
+        // 看右
+        if (i &lt; n - 1) {
+          acc.numerator += k * c[j][i + 1];
+          acc.denominator += k;
+        } else {
+          addWall(walls.right, k, acc);
+        }
+        // 看下
+        if (j &gt; 0) {
+          acc.numerator += k * c[j - 1][i];
+          acc.denominator += k;
+        } else {
+          addWall(walls.bottom, k, acc);
+        }
+        // 看上
+        if (j &lt; n - 1) {
+          acc.numerator += k * c[j + 1][i];
+          acc.denominator += k;
+        } else {
+          addWall(walls.top, k, acc);
+        }
+
+        const newValue = acc.numerator / acc.denominator;
+        maxChange = Math.max(maxChange, Math.abs(newValue - c[j][i]));
+        c[j][i] = newValue;              // 就地写回
+      }
+    }
+
+    if (maxChange &lt; tolerance) {
+      break;
+    }
+  }
+
+  return { c: c, sweeps: sweeps };
+}
+
+// ===== 3. 打印：从最上面一行往下打，屏幕上的「上」就是物理上的「上」 =====
+function report(title: string, result: { c: number[][]; sweeps: number }): void {
+  console.log(`${title}（扫了 ${result.sweeps} 遍）`);
+  const n = result.c.length;
+  for (let j = n - 1; j &gt;= 0; j--) {
+    const row = result.c[j].map((v) =&gt; v.toFixed(3).padStart(7)).join(&quot; &quot;);
+    console.log(`  j=${j}  ${row}`);
+  }
+}
+
+// 尺子五：所有值都要落在最低和最高的钉死墙值之间
+function checkBounds(result: { c: number[][] }, walls: Walls): string {
+  const wallValues: number[] = [];
+  for (const w of [walls.left, walls.right, walls.bottom, walls.top]) {
+    if (w.kind === &quot;fixed&quot;) wallValues.push(w.value);
+  }
+  const lo = Math.min(...wallValues);
+  const hi = Math.max(...wallValues);
+  const all = result.c.flat();
+  const cMin = Math.min(...all);
+  const cMax = Math.max(...all);
+  // 迭代只收敛到 1e-6 左右（平场会算出 4.9999997 这样的数），所以留 1e-4 的余量
+  const ok = cMin &gt;= lo - 1e-4 &amp;&amp; cMax &lt;= hi + 1e-4;
+  return `盒子里最小 ${cMin.toFixed(3)}、最大 ${cMax.toFixed(3)}，墙值在 ${lo} 到 ${hi} 之间 → ${ok ? &quot;有界 ✓&quot; : &quot;越界 ✗&quot;}`;
+}
+
+// ===== 4. 第 7 课的五把验收尺子（都是 5 × 5） =====
+const L = 0.1;     // 边长 [m]
+const D = 1e-9;    // 墨在水里的扩散系数 [m²/s]
+const A = 1e-4;    // 一道墙的面积 [m²]
+const N = 5;
+
+const ruler1: Walls = { left: fixedWall(10), right: fixedWall(0), bottom: closedWall,   top: closedWall };
+const ruler2: Walls = { left: fixedWall(5),  right: fixedWall(5), bottom: fixedWall(5), top: fixedWall(5) };
+const ruler3: Walls = { left: fixedWall(10), right: fixedWall(0), bottom: fixedWall(0), top: fixedWall(0) };
+const ruler4: Walls = { left: fixedWall(0),  right: fixedWall(0), bottom: fixedWall(0), top: fixedWall(10) };
+
+const r1 = solveDiffusion2D(N, L, D, A, ruler1);
+const r2 = solveDiffusion2D(N, L, D, A, ruler2);
+const r3 = solveDiffusion2D(N, L, D, A, ruler3);
+const r4 = solveDiffusion2D(N, L, D, A, ruler4);
+
+report(&quot;尺子一 · 左钉死 10，右钉死 0，上下不透水（每一行都该是 9 7 5 3 1）&quot;, r1);
+report(&quot;尺子二 · 四面都钉死 5（全该是 5）&quot;, r2);
+report(&quot;尺子三 · 左钉死 10，另三面钉死 0（第 0 行 = 第 4 行，第 1 行 = 第 3 行）&quot;, r3);
+console.log(`  中心 c[2][2] = ${r3.c[2][2].toFixed(3)}（该是 2.500）`);
+report(&quot;尺子四 · 上钉死 10，另三面钉死 0（中心该是 2.500，每行左右对称）&quot;, r4);
+console.log(`  中心 c[2][2] = ${r4.c[2][2].toFixed(3)}`);
+
+console.log(&quot;尺子五 · 有界&quot;);
+console.log(&quot;  尺子一：&quot; + checkBounds(r1, ruler1));
+console.log(&quot;  尺子二：&quot; + checkBounds(r2, ruler2));
+console.log(&quot;  尺子三：&quot; + checkBounds(r3, ruler3));
+console.log(&quot;  尺子四：&quot; + checkBounds(r4, ruler4));</code></pre>
+      <p><strong>运行后应该看到：</strong></p>
+      <pre class="formula"><code>尺子一 · 左钉死 10，右钉死 0，上下不透水（每一行都该是 9 7 5 3 1）（扫了 66 遍）
+  j=4    9.000   7.000   5.000   3.000   1.000
+  j=3    9.000   7.000   5.000   3.000   1.000
+  j=2    9.000   7.000   5.000   3.000   1.000
+  j=1    9.000   7.000   5.000   3.000   1.000
+  j=0    9.000   7.000   5.000   3.000   1.000
+尺子二 · 四面都钉死 5（全该是 5）（扫了 39 遍）
+  j=4    5.000   5.000   5.000   5.000   5.000
+  j=3    5.000   5.000   5.000   5.000   5.000
+  j=2    5.000   5.000   5.000   5.000   5.000
+  j=1    5.000   5.000   5.000   5.000   5.000
+  j=0    5.000   5.000   5.000   5.000   5.000
+尺子三 · 左钉死 10，另三面钉死 0（第 0 行 = 第 4 行，第 1 行 = 第 3 行）（扫了 36 遍）
+  j=4    4.884   1.954   0.891   0.402   0.116
+  j=3    7.347   3.997   2.098   1.003   0.296
+  j=2    7.856   4.587   2.500   1.217   0.362
+  j=1    7.347   3.997   2.098   1.003   0.296
+  j=0    4.884   1.954   0.891   0.402   0.116
+  中心 c[2][2] = 2.500（该是 2.500）
+尺子四 · 上钉死 10，另三面钉死 0（中心该是 2.500，每行左右对称）（扫了 38 遍）
+  j=4    4.884   7.347   7.856   7.347   4.884
+  j=3    1.954   3.997   4.587   3.997   1.954
+  j=2    0.891   2.098   2.500   2.098   0.891
+  j=1    0.402   1.003   1.217   1.003   0.402
+  j=0    0.116   0.296   0.362   0.296   0.116
+  中心 c[2][2] = 2.500
+尺子五 · 有界
+  尺子一：盒子里最小 1.000、最大 9.000，墙值在 0 到 10 之间 → 有界 ✓
+  尺子二：盒子里最小 5.000、最大 5.000，墙值在 5 到 5 之间 → 有界 ✓
+  尺子三：盒子里最小 0.116、最大 7.856，墙值在 0 到 10 之间 → 有界 ✓
+  尺子四：盒子里最小 0.116、最大 7.856，墙值在 0 到 10 之间 → 有界 ✓</code></pre>
+      <p>这份代码我在这边用 Node 22.22 跑过，上面是它的原样输出；也用 TypeScript 的严格模式（带浏览器全局名，和 Playground 一样）做过类型检查，没有报错。四个遍数 66、39、36、38 和第一节表里的一样。</p>
+      <p>读的时候对着第一节的尺子核：尺子三的打印里，最上一行 <code>4.884 1.954 0.891 0.402 0.116</code> 和最下一行相同；尺子四是尺子三转了 90°，最上一行从左到右正好是尺子三最左一列从下到上。</p>
+    </details>
+  </section>
+
+  <section>
+    <h2>十 · 写完交什么</h2>
     <ol>
       <li><code>Diffusion2D.ts</code> 全文</li>
       <li>尺子一到四的输出：每道题一张 5 × 5 的表，从最上面一行往下打，外加扫了几遍</li>
