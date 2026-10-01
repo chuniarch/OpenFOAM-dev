@@ -1,0 +1,237 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>一滴墨散开</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@600;700&family=JetBrains+Mono:wght@400;500&display=swap">
+<link rel="stylesheet" href="../assets/lesson.css">
+</head>
+<body>
+<main class="sheet">
+
+  <header class="masthead">
+    <p class="eyebrow">第 8 课 · 砖块 8 · Diffusion1DTransient.ts</p>
+    <h1>一滴墨散开</h1>
+    <p class="lede">前七课只问"最后停在哪"。这一课问"每一刻在哪"：往管子中间滴一滴墨，看它一步一步散开。方程只多一项——盒子里墨的增加。</p>
+    <p class="meta"><span>读约 15 分钟 + 写代码</span><span>前置：第 6 课的一维程序</span><span>产出：<code>Diffusion1DTransient.ts</code></span></p>
+  </header>
+
+  <section>
+    <h2>一 · 先定验收尺子</h2>
+    <p>这一课所有例子共用的条件：</p>
+    <pre class="formula"><code>一根细管等分成 5 个盒子，内部墙权重 k，钉死浓度的边界墙 2k，不透水的墙不写
+每一步走 Δt 秒；r = D × Δt / Δx²（第二节推出来：这一个数就决定了每一步怎么算）</code></pre>
+    <div class="scroll">
+    <table>
+      <thead><tr><th>#</th><th>设定</th><th>期望输出</th><th>抓什么错</th></tr></thead>
+      <tbody>
+        <tr><td>1</td><td>两面墙都<strong>不透水</strong>；初值 0、0、10、0、0（墨滴在 3 号）；r = 0.25</td><td>第 1 步 <code>0 2.5 5 2.5 0</code>；第 2 步 <code>0.625 2.5 3.75 2.5 0.625</code>；<strong>每一步五个数加起来都是 10</strong>；最后全是 <code>2.000</code></td><td>方程、就地写回</td></tr>
+        <tr><td>2</td><td>同第 1 条，r = 0.6</td><td>第 1 步 3 号变成 <code>−2</code>（负的墨），之后越跳越大；加起来仍是 10</td><td>Δt 取太大</td></tr>
+        <tr><td>3</td><td>左墙钉死 10，右墙钉死 0；初值全 0；r = 0.25</td><td>第 1 步 <code>5 0 0 0 0</code>；最后停在 <code>9 7 5 3 1</code></td><td>钉死的墙、和稳态接不上</td></tr>
+      </tbody>
+    </table>
+    </div>
+    <p>第 1 条的最后值、第 3 条的最后值不用算就知道：</p>
+    <ul>
+      <li><strong>第 1 条</strong>：两面不透水，墨出不去也进不来，总量一直是 10（第三节证明）。时间够长就散匀，5 个盒子一样浓：10 ÷ 5 = 2。</li>
+      <li><strong>第 3 条</strong>：时间够长，盒子里的墨不再变，就回到了第 6 课的稳态：5 个盒子、左墙钉死 10、右墙钉死 0、内部墙 k、边界墙 2k，答案 9、7、5、3、1（代回核对：1 号 <code>(2k × 10 + k × 7) / 3k = 9</code>，2 号 <code>(k × 9 + k × 5) / 2k = 7</code>，3 号 <code>(k × 7 + k × 3) / 2k = 5</code>，4 号 <code>(k × 5 + k × 1) / 2k = 3</code>，5 号 <code>(k × 3 + 2k × 0) / 3k = 1</code>）。</li>
+    </ul>
+    <p>我这边跑出来：第 1 条第 35 步最大改动小于 1e-6，第 3 条第 134 步。和稳态时一样，只作对照，差一两步不算错。</p>
+  </section>
+
+  <section>
+    <h2>二 · 从"进 = 出"到"进 − 出 = 增加"</h2>
+    <p>砖块 2 的稳态：盒子里的墨不再变，所以净流入 = 0。净流入的算法照旧：每一面墙算 <code>w × (对面的值 − 自己的值)</code>，加起来（内部墙 w = k，钉死的墙 w = 2k、对面是钉死的浓度，不透水的墙不写）。</p>
+    <p>现在墨在变。盒子里的墨量 = 浓度 × 体积 = <code>C × V</code>。一秒钟里墨量的增加，就等于这一秒的净流入：</p>
+    <pre class="formula"><code>V × (C_新 − C_旧) / Δt  =  Σ w × (C_对面 − C_P)
+  左边：这 Δt 秒里墨量增加多少，除以 Δt，单位 kg/s
+  右边：净流入，单位 kg/s</code></pre>
+    <p>右边的浓度用哪一刻的？这一课用<strong>这一步开头</strong>的值（旧值）。这样右边全是已知数，每个盒子单独一算就出新值，不用联立、不用一遍遍扫。这种做法叫<strong>显式</strong>（英文 explicit：新值可以直接用旧值写出来）。它是个近似：Δt 秒里浓度一直在变，流量其实也在变，我们按开头那一刻的流量算了整个 Δt。</p>
+    <p>两边乘 <code>Δt / V</code>，移项：</p>
+    <pre class="formula"><code>C_新 = C_旧 + (Δt / V) × Σ w × (C_对面 − C_旧)
+
+内部墙：(Δt / V) × k = Δt × (D × A / Δx) / (A × Δx) = D × Δt / Δx² = r
+钉死的墙：(Δt / V) × 2k = 2r
+（V = A × Δx：一个盒子的体积是墙面积乘格宽）</code></pre>
+    <p>所以每一步只用这一条：</p>
+    <pre class="formula"><code>C_新 = C_旧 + r × [ 每面墙：内部墙 1 ×(对面 − 自己)，钉死的墙 2 ×(墙值 − 自己)，不透水的墙 0 ]</code></pre>
+    <p><code>r = D × Δt / Δx²</code> 没有单位（m²/s × s ÷ m²）。D、Δt、Δx 怎么变都只通过它起作用。</p>
+
+    <h3>手算尺子 1 的前两步</h3>
+    <p>两面不透水，r = 0.25，旧值 0、0、10、0、0。每个盒子都只用旧值：</p>
+    <pre class="formula"><code>第 1 步（旧值 0, 0, 10, 0, 0）
+1 号：0  + 0.25 × (0 − 0)                    = 0        左墙不透水，只有右邻
+2 号：0  + 0.25 × [(0 − 0) + (10 − 0)]       = 2.5
+3 号：10 + 0.25 × [(0 − 10) + (0 − 10)]      = 10 − 5 = 5
+4 号：0  + 0.25 × [(10 − 0) + (0 − 0)]       = 2.5
+5 号：0  + 0.25 × (0 − 0)                    = 0        右墙不透水，只有左邻
+加起来：0 + 2.5 + 5 + 2.5 + 0 = 10
+
+第 2 步（旧值 0, 2.5, 5, 2.5, 0）
+1 号：0   + 0.25 × (2.5 − 0)                 = 0.625
+2 号：2.5 + 0.25 × [(0 − 2.5) + (5 − 2.5)]   = 2.5 + 0 = 2.5
+3 号：5   + 0.25 × [(2.5 − 5) + (2.5 − 5)]   = 5 − 1.25 = 3.75
+4 号：2.5 + 0.25 × [(5 − 2.5) + (0 − 2.5)]   = 2.5
+5 号：0   + 0.25 × (2.5 − 0)                 = 0.625
+加起来：0.625 + 2.5 + 3.75 + 2.5 + 0.625 = 10</code></pre>
+    <p>换成真实的墨：D = 1e-9 m²/s，管长 0.1 m，5 个盒子 Δx = 0.02 m，r = 0.25 对应 <code>Δt = r × Δx² / D = 0.25 × 0.0004 / 1e-9 = 100000 秒</code>，约 28 小时一步。第 35 步散匀，约 35 × 28 ≈ 970 小时，40 天。墨水在静水里就是这么慢。</p>
+  </section>
+
+  <section>
+    <h2>三 · 为什么总量不变</h2>
+    <p>看 2 号和 3 号之间那道墙。第 1 步里，2 号从这道墙得到 <code>0.25 × (10 − 0) = 2.5</code>；3 号从同一道墙得到 <code>0.25 × (0 − 10) = −2.5</code>。同一道墙、同一组旧值，两边一正一负，加起来是 0。每一道内部墙都这样；不透水的墙流量是 0。所以五个盒子的改动加起来是 0：第 1 步的改动 0、+2.5、−5、+2.5、0，和为 0。</p>
+    <p>（盒子体积都一样，所以"墨量的总和不变"就是"浓度的总和不变"。）</p>
+    <p>尺子 3 的总和会变：钉死的墙外是一缸浓度不变的墨水，它那道墙只算在一个盒子里，没有另一边来抵消。第 1 步 1 号得到 <code>2 × 0.25 × (10 − 0) = 5</code>，总和从 0 变成 5。所以"总量守恒"这把尺子只用在两面都不透水的题上。</p>
+  </section>
+
+  <section>
+    <h2>四 · 必须全用旧值：两个数组</h2>
+    <p>第 6 课的高斯-塞德尔是算完一个盒子<strong>立刻写回</strong>，后面的盒子马上用上新值。那里对，因为大家在找同一个稳态，早用新值只是走得快。这里不行：每一步要算的是"这一步开头那一刻"各道墙的流量，一道墙两边必须用同一组值，否则一进一出对不上。</p>
+    <p>就地写回会怎样（尺子 1 第 1 步，算到 3 号时 2 号已经是新值 2.5）：</p>
+    <pre class="formula"><code>1 号：0                                          = 0
+2 号：0  + 0.25 × [(0 − 0) + (10 − 0)]           = 2.5
+3 号：10 + 0.25 × [(2.5 − 10) + (0 − 10)]        = 10 − 4.375 = 5.625    左邻已是新值
+4 号：0  + 0.25 × [(5.625 − 0) + (0 − 0)]        = 1.406                 左邻已是新值
+5 号：0  + 0.25 × (1.406 − 0)                    = 0.352
+加起来：0 + 2.5 + 5.625 + 1.406 + 0.352 = 9.883     少了 0.117</code></pre>
+    <p>少掉的 0.117 出在哪道墙：</p>
+    <pre class="formula"><code>2–3 号之间：2 号按 3 号 = 10 算，得到 +2.5；3 号按 2 号 = 2.5 算，得到 0.25 × (2.5 − 10) = −1.875；合计 +0.625
+3–4 号之间：3 号按 4 号 = 0 算，得到 −2.5；4 号按 3 号 = 5.625 算，得到 +1.406；合计 −1.094
+4–5 号之间：4 号按 5 号 = 0 算，得到 0；5 号按 4 号 = 1.406 算，得到 +0.352；合计 +0.352
+三道墙合计：0.625 − 1.094 + 0.352 = −0.117</code></pre>
+    <p>我照这样跑到底：最后五个盒子都是 1.875，总和 9.375，不是 10。"总量守恒"这把尺子一眼就能抓住它。</p>
+    <div class="callout warn">
+      <span class="label">TypeScript 里最容易这样犯</span>
+      <p>写 <code>const cOld = c;</code> <strong>不是复制</strong>，<code>cOld</code> 和 <code>c</code> 是同一个数组（第 7 课 <code>fill</code> 那个坑是同一回事）。改了 <code>c[2]</code>，<code>cOld[2]</code> 跟着变，结果就是上面的就地写回。要另一个数组，写 <code>const cNew = c.slice();</code>（复制一份）或者每一步 <code>new Array(n).fill(0)</code> 新建一个，算完再 <code>c = cNew;</code>（这时 <code>c</code> 要用 <code>let</code> 声明）。</p>
+    </div>
+  </section>
+
+  <section>
+    <h2>五 · Δt 不能太大：自己留下的那份不能是负的</h2>
+    <p>把更新式按"旧的自己"和"旧的对面"整理。以 3 号（两边都是内部墙）为例：</p>
+    <pre class="formula"><code>C_新 = C_旧 + r × [(C_左 − C_旧) + (C_右 − C_旧)]
+     = (1 − 2r) × C_旧 + r × C_左 + r × C_右</code></pre>
+    <p>三个系数加起来 <code>(1 − 2r) + r + r = 1</code>。只要每个系数都不小于 0，新值就是旧值们的加权平均，不会比它们最大的还大、最小的还小：不会出现负的墨，也不会冲过头。要求 <code>1 − 2r ≥ 0</code>，即 <code>r ≤ 1/2</code>。</p>
+    <p>每种盒子自己留下的系数（m 是那面墙的倍数：内部墙 1，钉死的墙 2，不透水的墙 0）：</p>
+    <pre class="formula"><code>两边都是内部墙：          1 − (1 + 1) r = 1 − 2r     ⇒ r ≤ 1/2
+一边内部墙、一边钉死的墙：1 − (1 + 2) r = 1 − 3r     ⇒ r ≤ 1/3
+一边内部墙、一边不透水：  1 − (1 + 0) r = 1 − r      ⇒ r ≤ 1</code></pre>
+    <p>整根管要取最严的那个：尺子 1（两面不透水）是 r ≤ 1/2，尺子 3（两面钉死）是 r ≤ 1/3。</p>
+    <p>超了会怎样：尺子 2，r = 0.6，3 号自己留下 <code>1 − 2 × 0.6 = −0.2</code>：</p>
+    <pre class="formula"><code>3 号第 1 步：−0.2 × 10 + 0.6 × 0 + 0.6 × 0 = −2</code></pre>
+    <p>一个盒子的墨比零还少，物理上不可能。我照这样跑下去：第 2 步 <code>3.6 −2.4 7.6 −2.4 3.6</code>，第 20 步 3 号已经是 95.727，第 87 步超过一百万。总和每一步都还是 10（第三节的抵消照样成立），所以守恒抓不住它，<strong>有界</strong>抓得住。</p>
+    <p>只超一点点也不对劲。尺子 3 取 r = 0.4（大于 1/3，小于 1/2），1 号贴着钉死的墙，自己留下 <code>1 − 3 × 0.4 = −0.2</code>：</p>
+    <pre class="formula"><code>1 号第 1 步：0 + 0.4 × [2 × (10 − 0) + (0 − 0)]     = 8
+1 号第 2 步：8 + 0.4 × [2 × (10 − 8) + (0 − 8)]     = 8 − 1.6 = 6.4</code></pre>
+    <p>它要去的地方是 9，却从 8 退回 6.4：现在越浓，下一步反而越淡。这次没有越跳越大，最后还是停在 9、7、5、3、1，但中间这样来回跳不是真实的扩散。</p>
+    <p>换回真实单位：<code>r = D × Δt / Δx² ≤ 1/3</code> ⇒ <code>Δt ≤ Δx² / (3D)</code>。格子减半，Δx² 变成四分之一，Δt 上限也变成四分之一：同样走到 40 天，要多走 4 倍的步数，每一步还要多算一倍的盒子。这是砖块 9（隐式）要解决的事。</p>
+  </section>
+
+  <section>
+    <h2>六 · 程序的设计</h2>
+    <p>还是四层翻译，代码你来写。从第 6 课的 <code>Diffusion1D.ts</code> 改起：墙的描述（<code>fixedWall</code>、<code>closedWall</code>）和"看左、看右，两个独立判断"都留着；"一遍遍扫到最大改动小于容差"换成"一步步往前走"。</p>
+    <pre class="formula"><code>准备：Δx = L / N，r = D × Δt / Δx²（或者直接给 r）；数组 c 填初值
+
+重复，走 nSteps 步（尺子 3 也可以走到最大改动 &lt; 1e-6 为止）：
+    新建 cNew（和 c 一样长）
+    对每个盒子 i：
+        净 ← 0
+        看左：是邻居 → 净 += 1 × (c[i−1] − c[i])
+              钉死的墙 → 净 += 2 × (墙值 − c[i])
+              不透水 → 不加
+        看右：同理（两个独立判断）
+        cNew[i] ← c[i] + r × 净             ← 右边只读 c，只写 cNew
+    c ← cNew
+    打印：第几步、五个值、总和
+
+打印前先检查：r 有没有超过最严的那个上限</code></pre>
+    <p>和第 6 课的三处不同：没有分母，不用除；没有"扫到不变为止"，一步就是一遍；读和写分在两个数组。</p>
+  </section>
+
+  <section>
+    <h2>七 · 易错点</h2>
+    <ol>
+      <li><strong>就地写回</strong>（或者 <code>const cOld = c</code> 以为复制了）→ 两面不透水时总和变少：尺子 1 第 1 步是 9.883，不是 10。</li>
+      <li><strong>钉死的墙用了 1 而不是 2</strong> → 尺子 3 第 1 步 1 号是 <code>0.25 × 10 = 2.5</code>，应该是 5。</li>
+      <li><strong>把不透水当成钉死成 0</strong> → 尺子 1 的墨从两头漏出去，总和越来越少，最后全是 0。</li>
+      <li><strong>符号写反</strong>（写成 <code>自己 − 对面</code>）→ 墨往浓的地方流，3 号第 1 步变成 15，越来越大。</li>
+      <li><strong>Δt 只按内部墙的 1/2 定</strong> → 两面钉死时贴墙的盒子来回跳（r = 0.4 的例子），上限是 1/3。</li>
+    </ol>
+  </section>
+
+  <section>
+    <h2>八 · 在哪里跑、写完交什么</h2>
+    <p>iPad：浏览器打开 TypeScript Playground（<a href="https://www.typescriptlang.org/play">typescriptlang.org/play</a>），贴进去点 Run，输出在右边的 Logs 里。电脑：Node 22.18 或更新，<code>node Diffusion1DTransient.ts</code>。</p>
+    <ol>
+      <li><code>Diffusion1DTransient.ts</code> 全文</li>
+      <li>尺子 1：前 3 步的五个值和总和，以及第几步散匀（最大改动 &lt; 1e-6）</li>
+      <li>尺子 2：前 3 步</li>
+      <li>尺子 3：前 2 步，以及第几步停在 9 7 5 3 1</li>
+    </ol>
+  </section>
+
+  <section>
+    <h2>练习</h2>
+    <p>有计算，也有换了设定的题。凭理解做，别回头翻。</p>
+    <div class="quiz" id="quiz">
+
+      <div class="q" data-answer="1">
+        <p class="stem">1. 尺子 1（两面不透水，r = 0.25），第 2 步后是 0.625、2.5、3.75、2.5、0.625。第 3 步后 3 号是多少？</p>
+        <div class="opts">
+          <button class="opt" type="button" aria-pressed="false">2.500</button>
+          <button class="opt" type="button" aria-pressed="false">3.125</button>
+          <button class="opt" type="button" aria-pressed="false">4.375</button>
+          <button class="opt" type="button" aria-pressed="false">3.750</button>
+        </div>
+        <p class="fb" hidden data-fb="<code>3.75 + 0.25 × [(2.5 − 3.75) + (2.5 − 3.75)] = 3.75 + 0.25 × (−2.5) = 3.125</code>。选 2.500，是内部墙也乘了 2（<code>3.75 + 0.5 × (−2.5)</code>），2 只给钉死的边界墙；选 4.375，是符号反了，写成了 自己 − 对面；选 3.750，是算出了改动却没加到旧值上。"></p>
+      </div>
+
+      <div class="q" data-answer="2">
+        <p class="stem">2. 换成二维 5 × 5，四面墙都钉死，内部墙 k、边界墙 2k，显式。r 最大取多少，才保证每个盒子自己留下的系数都不小于 0？</p>
+        <div class="opts">
+          <button class="opt" type="button" aria-pressed="false">1/4</button>
+          <button class="opt" type="button" aria-pressed="false">1/2</button>
+          <button class="opt" type="button" aria-pressed="false">1/6</button>
+          <button class="opt" type="button" aria-pressed="false">1/3</button>
+        </div>
+        <p class="fb" hidden data-fb="最严的是角上的盒子：两面钉死的墙各 2，两个邻居各 1，自己留下 <code>1 − (2 + 2 + 1 + 1) r = 1 − 6r</code>，所以 <code>r ≤ 1/6</code>。选 1/4，是只看了中间的盒子（四个邻居，<code>1 − 4r</code>）；选 1/2，是照搬了一维中间的盒子；选 1/3，是照搬了一维贴墙的盒子，二维的角上多了一面墙。"></p>
+      </div>
+
+      <div class="q" data-answer="0">
+        <p class="stem">3. 尺子 1 的程序，五个值看着都像样，但每一步打印的总和越来越小（第 1 步 9.883）。最可能错在哪？</p>
+        <div class="opts">
+          <button class="opt" type="button" aria-pressed="false">就地写回了</button>
+          <button class="opt" type="button" aria-pressed="false">r 取太大了</button>
+          <button class="opt" type="button" aria-pressed="false">符号写反了</button>
+          <button class="opt" type="button" aria-pressed="false">墙用了 1 倍</button>
+        </div>
+        <p class="fb" hidden data-fb="就地写回时，同一道墙两边用的不是同一组值，一进一出对不上，墨凭空少了（第四节逐道墙算过：−0.117）。另外三个都不让总和变：r 太大时第三节的抵消照样成立，总和还是 10，只是出现负值；符号反了也照样一正一负抵消，总和是 10，但值越来越大；两面不透水的题根本没有钉死的墙，用几倍都一样。"></p>
+      </div>
+
+      <div class="q" data-answer="3">
+        <p class="stem">4. 尺子 3（左钉死 10，右钉死 0，r = 0.25，Δx = 0.02 m，D = 1e-9 m²/s，一步 100000 秒）。把盒子数从 5 改成 10，r 还取 0.25。一步是多少秒？</p>
+        <div class="opts">
+          <button class="opt" type="button" aria-pressed="false">50000</button>
+          <button class="opt" type="button" aria-pressed="false">100000</button>
+          <button class="opt" type="button" aria-pressed="false">200000</button>
+          <button class="opt" type="button" aria-pressed="false">25000</button>
+        </div>
+        <p class="fb" hidden data-fb="Δx 从 0.02 m 变成 0.01 m，<code>Δt = r × Δx² / D = 0.25 × 0.0001 / 1e-9 = 25000</code> 秒，是原来的四分之一。选 50000，是以为 Δt 跟着 Δx 只减半，可 r 里是 Δx 的平方；选 100000，是以为 r 不变 Δt 就不变；选 200000，是把平方关系弄反了。"></p>
+      </div>
+
+    </div>
+  </section>
+
+  <footer>
+    <p><strong>下一步：</strong>代码和输出贴过来，我在这边直接跑、按三把尺子点评。然后是砖块 9：右边改用新值（隐式），Δt 就没有这个上限了，代价是每一步又要像第 6 课那样联立、一遍遍扫。</p>
+    <p><strong>主要参考：</strong>Versteeg &amp; Malalasekera《An Introduction to Computational Fluid Dynamics: The Finite Volume Method》第 8 章（非稳态扩散，显式格式与它的时间步限制）。书里用热传导举例，把"温度"换成"浓度"读。</p>
+    <p><strong>卡住了就回到对话里问我。</strong>报错时把原文整段贴过来。</p>
+  </footer>
+
+</main>
+<script src="../assets/quiz.js"></script>
+</body>
+</html>
