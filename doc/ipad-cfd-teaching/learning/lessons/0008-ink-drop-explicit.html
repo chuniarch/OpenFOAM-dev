@@ -49,7 +49,8 @@
     <pre class="formula"><code>V × (C_新 − C_旧) / Δt  =  Σ w × (C_对面 − C_P)
   左边：这 Δt 秒里墨量增加多少，除以 Δt，单位 kg/s
   右边：净流入，单位 kg/s</code></pre>
-    <p>右边的浓度用哪一刻的？这一课用<strong>这一步开头</strong>的值（旧值）。这样右边全是已知数，每个盒子单独一算就出新值，不用联立、不用一遍遍扫。这种做法叫<strong>显式</strong>（英文 explicit：新值可以直接用旧值写出来）。它是个近似：Δt 秒里浓度一直在变，流量其实也在变，我们按开头那一刻的流量算了整个 Δt。</p>
+    <p>式子里四个浓度：<code>C_新</code> 是这一步结束时（Δt 秒之后）这个盒子的浓度；<code>C_旧</code> 是这一步开头这个盒子的浓度（第 1 步的开头就是第 0 步，题目给的；第 2 步的开头是第 1 步算出来的，依此类推）。右边的 <code>C_P</code>（自己）和 <code>C_对面</code>（邻居，或钉死的墙值）在这 Δt 秒里其实一直在变，流量也一直在变。</p>
+    <p>右边的浓度用哪一刻的？这一课<strong>两个都</strong>用这一步开头的值：<code>C_P</code> 换成自己的旧值 <code>C_旧</code>，<code>C_对面</code> 换成邻居的旧值 <code>C_对面,旧</code>（钉死的墙值不随时间变，就是它本身）。这样右边全是已知数，每个盒子单独一算就出新值，不用联立、不用一遍遍扫。这种做法叫<strong>显式</strong>（英文 explicit：新值可以直接用旧值写出来）。它是个近似：Δt 秒里浓度一直在变，流量其实也在变，我们按开头那一刻的流量算了整个 Δt。</p>
     <div class="callout key">
       <span class="label">"已知"是怎么被知道的</span>
       <p>第 0 步的值是<strong>题目给的</strong>：我们往 3 号滴了一滴墨，那一刻管里就是 0、0、10、0、0。这是一个物理事实，就像"左墙钉死 10"一样是题目的条件，不是猜的。第 1 步的值用第 0 步算出来，算完就知道了；第 2 步再用第 1 步算。每一步右边用的，都是上一步已经算完的数。</p>
@@ -57,7 +58,7 @@
       <p>这里不同：第 1 步 3 号 = <code>10 + 0.25 × [(0 − 10) + (0 − 10)] = 5</code>，算一次就是第 1 步的值，不用再改。初值换了，后面每一步都跟着变，因为初值本身就是题目的一部分。</p>
     </div>
     <p>两边乘 <code>Δt / V</code>，移项：</p>
-    <pre class="formula"><code>C_新 = C_旧 + (Δt / V) × Σ w × (C_对面 − C_旧)
+    <pre class="formula"><code>C_新 = C_旧 + (Δt / V) × Σ w × (C_对面,旧 − C_旧)
 
 内部墙：(Δt / V) × k = Δt × (D × A / Δx) / (A × Δx) = D × Δt / Δx² = r
 钉死的墙：(Δt / V) × 2k = 2r
@@ -177,6 +178,152 @@
       <li>尺子 2：前 3 步</li>
       <li>尺子 3：前 2 步，以及第几步停在 9 7 5 3 1</li>
     </ol>
+  </section>
+
+  <section>
+    <h2>九 · 参考答案：Diffusion1DTransient.ts</h2>
+    <p>你要求直接给出全文（2026-10-01）。它对应第六节的设计：<code>step</code> 走一步，只读 <code>c</code>、只写新数组 <code>cNew</code>；<code>maxR</code> 按第五节算每个盒子自己留下的系数，找出 r 的上限；<code>run</code> 一步步往前走，打印指定的几步和总和，最大改动小于 1e-6 就报告停住。</p>
+    <details class="answer" id="answer8">
+      <summary>展开 Diffusion1DTransient.ts 全文</summary>
+      <pre class="formula"><code>// ============================================================
+// Diffusion1DTransient.ts  —— 砖块 8：一维非稳态扩散，显式时间推进
+//
+// 物理：一排 N 个盒子，水静止，墨只靠扩散移动；看它一步一步怎么变。
+// 数学：V × (C_新 − C_旧) / Δt = Σ w × (C_对面,旧 − C_旧)      右边全用这一步开头的值
+//       ⇒ C_新 = C_旧 + r × Σ m × (C_对面,旧 − C_旧)，   r = D × Δt / Δx²
+//       m：内部墙 1，钉死浓度的墙 2（对面是墙值），不透水的墙 0（不写）
+// 读写分开：右边只读 c，只写 cNew；一步算完再 c = cNew。
+// 运行：贴进 TypeScript Playground 点 Run；或 node Diffusion1DTransient.ts（Node 22.18 起）。
+// ============================================================
+
+// ===== 1. 墙的描述（和第 6 课一样） =====
+type Wall =
+  | { kind: &quot;fixed&quot;; value: number } // 钉死浓度的墙 [kg/m³]
+  | { kind: &quot;closed&quot; };              // 不透水的墙
+
+function fixedWall(value: number): Wall {
+  return { kind: &quot;fixed&quot;, value: value };
+}
+const closedWall: Wall = { kind: &quot;closed&quot; };
+
+// 一面边界墙的贡献：m × (墙值 − 自己)，钉死的 m = 2，不透水的不写
+function wallTerm(wall: Wall, self: number): number {
+  switch (wall.kind) {
+    case &quot;fixed&quot;:
+      return 2 * (wall.value - self);
+    case &quot;closed&quot;:
+      return 0;
+  }
+}
+
+// ===== 2. Δt 的上限：每个盒子自己留下的系数 1 − r × Σm 不能小于 0 =====
+function maxR(n: number, left: Wall, right: Wall): number {
+  let worst = 0; // 所有盒子里最大的 Σm
+  for (let i = 0; i &lt; n; i++) {
+    let m = 0;
+    m += i &gt; 0 ? 1 : left.kind === &quot;fixed&quot; ? 2 : 0;
+    m += i &lt; n - 1 ? 1 : right.kind === &quot;fixed&quot; ? 2 : 0;
+    worst = Math.max(worst, m);
+  }
+  return worst &gt; 0 ? 1 / worst : Infinity;
+}
+
+// ===== 3. 走一步：只读 c，只写 cNew =====
+function step(c: number[], r: number, left: Wall, right: Wall): number[] {
+  const n = c.length;
+  const cNew: number[] = new Array(n).fill(0); // 新数组；不能写 const cNew = c（那是同一个数组）
+  for (let i = 0; i &lt; n; i++) {
+    let net = 0;
+    // 看左
+    if (i &gt; 0) {
+      net += c[i - 1] - c[i];
+    } else {
+      net += wallTerm(left, c[i]);
+    }
+    // 看右（和看左是两个独立的判断）
+    if (i &lt; n - 1) {
+      net += c[i + 1] - c[i];
+    } else {
+      net += wallTerm(right, c[i]);
+    }
+    cNew[i] = c[i] + r * net;
+  }
+  return cNew;
+}
+
+// ===== 4. 走很多步，打印指定的几步 =====
+function sum(c: number[]): number {
+  let s = 0;
+  for (const v of c) s += v;
+  return s;
+}
+
+function run(
+  title: string,
+  initial: number[],
+  r: number,
+  left: Wall,
+  right: Wall,
+  showSteps: number[],   // 要打印的步数
+  maxSteps: number,      // 最多走几步
+  tolerance = 1e-6,      // 最大改动小于它就报告「停住了」并结束
+): void {
+  const limit = maxR(initial.length, left, right);
+  console.log(`${title}（r = ${r}，自留系数不为负的上限 r ≤ ${limit.toFixed(4)}${r &gt; limit ? &quot;，超了！&quot; : &quot;&quot;}）`);
+  console.log(`  第 0 步：${initial.map((v) =&gt; v.toFixed(3)).join(&quot; &quot;)}   总和 ${sum(initial).toFixed(3)}`);
+
+  let c = initial.slice(); // 复制一份，不改调用者的数组
+  for (let s = 1; s &lt;= maxSteps; s++) {
+    const cNew = step(c, r, left, right);
+    let maxChange = 0;
+    for (let i = 0; i &lt; c.length; i++) maxChange = Math.max(maxChange, Math.abs(cNew[i] - c[i]));
+    c = cNew;
+
+    if (showSteps.includes(s)) {
+      console.log(`  第 ${s} 步：${c.map((v) =&gt; v.toFixed(3)).join(&quot; &quot;)}   总和 ${sum(c).toFixed(3)}`);
+    }
+    if (maxChange &lt; tolerance) {
+      console.log(`  第 ${s} 步最大改动 &lt; ${tolerance}，停住：${c.map((v) =&gt; v.toFixed(3)).join(&quot; &quot;)}   总和 ${sum(c).toFixed(3)}`);
+      return;
+    }
+  }
+  console.log(`  走满 ${maxSteps} 步还没停`);
+}
+
+// ===== 5. 第 8 课的三把尺子 =====
+const drop = [0, 0, 10, 0, 0]; // 墨滴在 3 号
+
+run(&quot;尺子 1 · 两面不透水，墨滴在中间&quot;, drop, 0.25, closedWall, closedWall, [1, 2, 3], 100000);
+run(&quot;尺子 2 · 同上，Δt 太大&quot;, drop, 0.6, closedWall, closedWall, [1, 2, 3, 20], 20);
+run(&quot;尺子 3 · 左钉死 10，右钉死 0，初值全 0&quot;, [0, 0, 0, 0, 0], 0.25, fixedWall(10), fixedWall(0), [1, 2], 100000);
+
+// 换成真实单位：r = D × Δt / Δx²
+const D = 1e-9;          // 墨在水里的扩散系数 [m²/s]
+const dx = 0.1 / 5;      // 管长 0.1 m，5 个盒子 [m]
+const dt = 0.25 * dx * dx / D;
+console.log(`r = 0.25 时一步 Δt = ${dt.toFixed(0)} 秒，约 ${(dt / 3600).toFixed(1)} 小时`);</code></pre>
+      <p><strong>运行后应该看到：</strong></p>
+      <pre class="formula"><code>尺子 1 · 两面不透水，墨滴在中间（r = 0.25，自留系数不为负的上限 r ≤ 0.5000）
+  第 0 步：0.000 0.000 10.000 0.000 0.000   总和 10.000
+  第 1 步：0.000 2.500 5.000 2.500 0.000   总和 10.000
+  第 2 步：0.625 2.500 3.750 2.500 0.625   总和 10.000
+  第 3 步：1.094 2.344 3.125 2.344 1.094   总和 10.000
+  第 35 步最大改动 &lt; 0.000001，停住：2.000 2.000 2.000 2.000 2.000   总和 10.000
+尺子 2 · 同上，Δt 太大（r = 0.6，自留系数不为负的上限 r ≤ 0.5000，超了！）
+  第 0 步：0.000 0.000 10.000 0.000 0.000   总和 10.000
+  第 1 步：0.000 6.000 -2.000 6.000 0.000   总和 10.000
+  第 2 步：3.600 -2.400 7.600 -2.400 3.600   总和 10.000
+  第 3 步：0.000 7.200 -4.400 7.200 0.000   总和 10.000
+  第 20 步：30.963 -73.827 95.727 -73.827 30.963   总和 10.000
+  走满 20 步还没停
+尺子 3 · 左钉死 10，右钉死 0，初值全 0（r = 0.25，自留系数不为负的上限 r ≤ 0.3333）
+  第 0 步：0.000 0.000 0.000 0.000 0.000   总和 0.000
+  第 1 步：5.000 0.000 0.000 0.000 0.000   总和 5.000
+  第 2 步：6.250 1.250 0.000 0.000 0.000   总和 7.500
+  第 134 步最大改动 &lt; 0.000001，停住：9.000 7.000 5.000 3.000 1.000   总和 25.000
+r = 0.25 时一步 Δt = 100000 秒，约 27.8 小时</code></pre>
+      <p>这份代码我在这边用 Node 22.22 跑过，上面是原样输出；也用 TypeScript 严格模式做过类型检查，没有报错。每一行都能和正文的手算对上：第 1、2 步见第二节，r = 0.6 的 −2 见第五节，第 35 步、第 134 步见第一节。</p>
+    </details>
   </section>
 
   <section>
