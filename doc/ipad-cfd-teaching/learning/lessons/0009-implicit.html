@@ -1,0 +1,206 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>大步也不散架</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@600;700&family=JetBrains+Mono:wght@400;500&display=swap">
+<link rel="stylesheet" href="../assets/lesson.css">
+</head>
+<body>
+<main class="sheet">
+
+  <header class="masthead">
+    <p class="eyebrow">第 9 课 · 砖块 9 · Diffusion1DImplicit.ts</p>
+    <h1>大步也不散架</h1>
+    <p class="lede">第 8 课右边用旧值，Δt 一大就出负的墨。这一课只改一处：右边用<strong>新值</strong>。Δt 从此没有上限，代价是每一步都要像第 6 课那样一遍遍扫。</p>
+    <p class="meta"><span>读约 15 分钟 + 写代码</span><span>前置：第 6 课、第 8 课</span><span>产出：<code>Diffusion1DImplicit.ts</code></span></p>
+  </header>
+
+  <section>
+    <h2>一 · 先定验收尺子</h2>
+    <p>条件和第 8 课一样：一根细管等分成 5 个盒子，内部墙权重 k，钉死浓度的边界墙 2k，不透水的墙不写；<code>r = D × Δt / Δx²</code>。每一步里面用高斯-塞德尔扫到最大改动 &lt; 1e-6。</p>
+    <div class="scroll">
+    <table>
+      <thead><tr><th>#</th><th>设定</th><th>期望输出</th><th>第 8 课（显式）同样设定</th></tr></thead>
+      <tbody>
+        <tr><td>1</td><td>两面不透水；初值 0、0、10、0、0；r = 0.25</td><td>第 1 步 <code>0.244 1.220 7.073 1.220 0.244</code>（第三节手算）；每一步总和 10；最后全是 2</td><td>第 1 步 <code>0 2.5 5 2.5 0</code></td></tr>
+        <tr><td>2</td><td>同第 1 条，r = 0.6</td><td>第 1 步 <code>0.621 1.655 5.448 1.655 0.621</code>，<strong>没有负值</strong>；总和 10；最后全是 2</td><td>第 1 步 3 号 <code>−2</code>，越跳越大</td></tr>
+        <tr><td>3</td><td>左墙钉死 10，右墙钉死 0；初值全 0；r = 5</td><td>最后停在 <code>9 7 5 3 1</code></td><td>r 上限 1/3，r = 5 会发散</td></tr>
+      </tbody>
+    </table>
+    </div>
+    <p>第 1、2 条最后全是 2、第 3 条最后是 9 7 5 3 1，理由和第 8 课一样：两面不透水时墨的总量一直是 10，散匀后 10 ÷ 5 = 2；两面钉死时最后不再变，就是第 6 课的稳态（代回核对：1 号 <code>(2k × 10 + k × 7) / 3k = 9</code>，2 号 <code>(k × 9 + k × 5) / 2k = 7</code>，3 号 <code>(k × 7 + k × 3) / 2k = 5</code>，4 号 <code>(k × 5 + k × 1) / 2k = 3</code>，5 号 <code>(k × 3 + 2k × 0) / 3k = 1</code>）。</p>
+    <p>我这边跑出来：第 1 条第 48 步停，第 2 条第 25 步，第 3 条第 15 步。r = 5 时一步是 <code>5 × 0.02² / 1e-9 = 2000000</code> 秒，约 23 天，是显式上限的 15 倍。</p>
+  </section>
+
+  <section>
+    <h2>二 · 只改一处：右边用新值</h2>
+    <p>第 8 课的式子，右边全用这一步<strong>开头</strong>的值：</p>
+    <pre class="formula"><code>显式：V × (C_新 − C_旧) / Δt = Σ w × (C_对面,旧 − C_旧)</code></pre>
+    <p>这一课右边全用这一步<strong>结束</strong>时的值：自己用 <code>C_新</code>，邻居用 <code>C_对面,新</code>（钉死的墙值不变，还是墙值）：</p>
+    <pre class="formula"><code>隐式：V × (C_新 − C_旧) / Δt = Σ w × (C_对面,新 − C_新)</code></pre>
+    <p>这种做法叫<strong>隐式</strong>（英文 implicit：新值藏在方程两边，不能直接写出来，要解）。两种都是近似：Δt 秒里流量一直在变，显式按开头那一刻算，隐式按结尾那一刻算。</p>
+    <p>移项，把含 <code>C_新</code> 的放一边。两边乘 <code>Δt / V</code>，和第 8 课一样 <code>(Δt / V) × k = r</code>，钉死的墙 <code>2r</code>；记 m 为墙的倍数（内部墙 1，钉死的墙 2，不透水 0）：</p>
+    <pre class="formula"><code>C_新 − C_旧 = r × Σ m × (C_对面,新 − C_新)
+C_新 − C_旧 = r × Σ m × C_对面,新 − r × Σm × C_新
+C_新 + r × Σm × C_新 = C_旧 + r × Σ m × C_对面,新
+C_新 = (C_旧 + r × Σ m × C_对面,新) / (1 + r × Σm)</code></pre>
+    <p>分子分母都除以 r：</p>
+    <pre class="formula"><code>C_新 = ( (1/r) × C_旧 + Σ m × C_对面,新 ) / ( 1/r + Σm )</code></pre>
+    <p>拿第 6 课的稳态更新式对照（也除以 k）：</p>
+    <pre class="formula"><code>第 6 课：C_P = Σ m × C_对面 / Σm             邻居（和墙）按权重 m 取平均</code></pre>
+    <p>只多了一项：<strong>自己的旧值，像多出来的一个邻居，权重 1/r</strong>。它把这个盒子往"这一步开头的样子"拉。</p>
+    <p>麻烦也在这里：右边的 <code>C_对面,新</code> 也是这一步要求的数，五个盒子的新值互相要对方，只能联立。办法就是第 6 课的高斯-塞德尔：先拿旧值当猜测，用上面的更新式一个个重算、立刻写回，扫到最大改动 &lt; 1e-6。扫的时候 <code>C_旧</code> 一直不动，它是题目给的（或上一步算完的）。</p>
+  </section>
+
+  <section>
+    <h2>三 · 手算尺子 1 的第 1 步</h2>
+    <p>两面不透水，r = 0.25（1/r = 4），旧值 0、0、10、0、0。题目左右对称，所以新值也左右对称：记 1 号 = 5 号 = a，2 号 = 4 号 = b，3 号 = c。三条方程：</p>
+    <pre class="formula"><code>1 号：左墙不透水，右邻 2 号      a = (4 × 0 + b) / (4 + 1)          ⇒ a = b / 5
+2 号：左邻 1 号，右邻 3 号       b = (4 × 0 + a + c) / (4 + 2)      ⇒ 6b = a + c
+3 号：左右都是 b                c = (4 × 10 + b + b) / (4 + 2)     ⇒ 6c = 40 + 2b
+
+把 a = b/5 代进第二条：6b = b/5 + c  ⇒  c = 6b − b/5 = 29b/5
+代进第三条：6 × 29b/5 = 40 + 2b  ⇒  174b = 200 + 10b  ⇒  164b = 200
+b = 200/164 = 1.220      a = b/5 = 0.244      c = 29b/5 = 7.073</code></pre>
+    <p>代回更新式核对，每个盒子都算回自己：</p>
+    <pre class="formula"><code>1 号：(4 × 0 + 1.220) / 5          = 1.220 / 5  = 0.244
+2 号：(4 × 0 + 0.244 + 7.073) / 6  = 7.317 / 6  = 1.220
+3 号：(4 × 10 + 1.220 + 1.220) / 6 = 42.439 / 6 = 7.073
+总和：0.244 + 1.220 + 7.073 + 1.220 + 0.244 = 10.001（四舍五入；精确值 10/41 × 2 + 50/41 × 2 + 290/41 = 410/41 = 10）</code></pre>
+    <p>程序里不用解方程组，高斯-塞德尔从旧值出发扫 8 遍就到这里。和显式第 1 步 <code>0 2.5 5 2.5 0</code> 比：隐式一步之内墨就到了 1 号（0.244），因为 1 号的方程里直接用了 2 号的新值。</p>
+  </section>
+
+  <section>
+    <h2>四 · 为什么 Δt 没有上限</h2>
+    <p>看更新式 <code>C_新 = ( (1/r) × C_旧 + Σ m × C_对面,新 ) / ( 1/r + Σm )</code>：分子里每一项的权重是 <code>1/r</code> 或 <code>m</code>，<strong>不管 r 多大都是正的</strong>，分母正好是权重之和。所以新值永远是"自己的旧值、邻居的新值、钉死的墙值"的加权平均，不会比它们中最大的还大、最小的还小，不会出负的墨。</p>
+    <p>对比第 8 课：显式整理成 <code>C_新 = (1 − r × Σm) × C_旧 + r × Σ m × C_对面,旧</code>，自己那份 <code>1 − r × Σm</code> 在 r 大时变负，所以才有上限。尺子 2 的 3 号，r = 0.6：</p>
+    <pre class="formula"><code>显式：(1 − 2 × 0.6) × 10 + 0.6 × 0 + 0.6 × 0 = −0.2 × 10 = −2
+隐式：(10/0.6 + 1.655 + 1.655) / (1/0.6 + 2) = (16.667 + 3.310) / 3.667 = 5.448</code></pre>
+    <p>总量照样守恒：每一道内部墙两边算的都是同一组新值，<code>r × (C_b,新 − C_a,新)</code> 进了 a，同样的量出了 b，一进一出抵消。</p>
+  </section>
+
+  <section>
+    <h2>五 · 两个极端</h2>
+    <p><strong>r 很大（Δt 很长）</strong>：1/r 趋于 0，旧值那一项没了，更新式变成 <code>Σ m × C_对面 / Σm</code>，正是第 6 课的稳态方程。一步就跳到稳态。r = 100 时尺子 1 第 1 步就是 <code>1.980 2.000 2.040 2.000 1.980</code>。</p>
+    <p><strong>r 很小（Δt 很短）</strong>：1/r 很大，旧值那一项占绝大部分，新值几乎等于旧值：一眨眼，墨来不及动。</p>
+    <p>所以第 6 课的稳态求解器，就是隐式取 Δt 无穷大的特例。</p>
+  </section>
+
+  <section>
+    <h2>六 · 代价：每步要扫，大步不准</h2>
+    <p><strong>每步要扫。</strong>显式一步算一遍就完。隐式每一步里面都是一个"第 6 课"，r 越大，旧值那个"邻居"越弱，扫的遍数越多（尺子 1：r = 0.25 每步约 8 遍，r = 2 约 20 遍，r = 100 第 1 步 702 遍）。</p>
+    <p><strong>大步不准。</strong>不出负值不等于算得对。拿尺子 1 比较"同一个真实时刻"：4 × 100000 秒（r = 0.25 走 4 步，或 r = 1 走 1 步）。"参考"用显式 r = 0.001 走 1000 步算出（步子极小，当作真实答案）：</p>
+    <pre class="formula"><code>                              1 号    2 号    3 号
+参考（显式 r = 0.001，1000 步）  1.221   2.224   3.110
+显式 r = 0.25，4 步             1.406   2.227   2.734      3 号差 0.376
+隐式 r = 1，1 步                0.909   1.818   4.545      3 号差 1.435</code></pre>
+    <p>隐式一大步没有散架，但差得更多。<strong>隐式买到的是"不会散架"，不是"更准"。</strong>它的用处是：格子很细时显式的 Δt 上限（<code>Δx² / (3D)</code>）小得没法用，隐式可以按想看的时间精度挑 Δt；要看最终稳态时，可以放心迈大步。</p>
+    <p>另外，r 很大时内层"最大改动 &lt; 1e-6"停得太早（插页 B：最大改动小于容差 ≠ 误差小于容差）：r = 100 时总和漂成 10.0004；容差改成 1e-10 就回到 10.0000。</p>
+  </section>
+
+  <section>
+    <h2>七 · 程序的设计</h2>
+    <p>从第 8 课的程序改起：墙的描述、看左看右两个独立判断都留着。两层循环：</p>
+    <pre class="formula"><code>外层：走 nSteps 步（或走到一步之内的最大改动 &lt; 1e-6）
+    cOld ← c 的复制品                         ← 这一步开头的值，整个内层都不许改
+    cNew ← c 的复制品                         ← 猜测：先拿旧值当新值
+    内层：重复，直到这一遍最大改动 &lt; 容差（或扫满保险丝）
+        对每个盒子 i：
+            分子 ← (1/r) × cOld[i]，分母 ← 1/r
+            看左：邻居 → 分子 += cNew[i−1]，分母 += 1
+                  钉死 → 分子 += 2 × 墙值，分母 += 2
+                  不透水 → 不加
+            看右：同理
+            新值 ← 分子 / 分母
+            记下 |新值 − cNew[i]|，cNew[i] ← 新值      ← 内层就地写回，是高斯-塞德尔
+    c ← cNew；打印这一步、总和、内层扫了几遍</code></pre>
+    <p>注意两种"写回"：内层写回 <code>cNew</code> 是对的（在解同一时刻的方程，和第 6 课一样）；<code>cOld</code> 绝不能动（第 8 课的教训：旧值是这一步的已知条件）。</p>
+  </section>
+
+  <section>
+    <h2>八 · 易错点</h2>
+    <ol>
+      <li><strong>分母忘了加 1/r</strong>，或分子忘了 <code>(1/r) × C_旧</code> → 就成了第 6 课的稳态，一步跳到底，看不到"散开"。</li>
+      <li><strong>内层改了 cOld</strong>（比如 <code>const cOld = c; const cNew = c;</code>，三个名字是同一个数组）→ 旧值跟着变，每一遍的方程都不一样。</li>
+      <li><strong>右边邻居用了 cOld</strong> → 就退回了显式，只是多扫了几遍；r = 0.6 时又会出负值。</li>
+      <li><strong>r 很大时内层容差不够</strong> → 总和慢慢漂（r = 100、容差 1e-6 时 10.0004）。</li>
+    </ol>
+  </section>
+
+  <section>
+    <h2>九 · 在哪里跑、写完交什么</h2>
+    <p>iPad：TypeScript Playground（<a href="https://www.typescriptlang.org/play">typescriptlang.org/play</a>），点 Run，输出在 Logs 里。电脑：Node 22.18 或更新，<code>node Diffusion1DImplicit.ts</code>。</p>
+    <ol>
+      <li><code>Diffusion1DImplicit.ts</code> 全文</li>
+      <li>尺子 1：第 1 步的五个值、总和、内层扫了几遍；第几步散匀</li>
+      <li>尺子 2：前 2 步</li>
+      <li>尺子 3：第几步停在 9 7 5 3 1</li>
+    </ol>
+  </section>
+
+  <section>
+    <h2>练习</h2>
+    <p>有计算，也有换了设定的题。凭理解做，别回头翻。</p>
+    <div class="quiz" id="quiz">
+
+      <div class="q" data-answer="2">
+        <p class="stem">1. 尺子 1（两面不透水，r = 0.25，旧值 0、0、10、0、0）。已知第 1 步 2 号的新值是 1.220，1 号的新值是多少？</p>
+        <div class="opts">
+          <button class="opt" type="button" aria-pressed="false">0.000</button>
+          <button class="opt" type="button" aria-pressed="false">0.305</button>
+          <button class="opt" type="button" aria-pressed="false">0.244</button>
+          <button class="opt" type="button" aria-pressed="false">1.220</button>
+        </div>
+        <p class="fb" hidden data-fb="1 号左墙不透水，只有右邻 2 号：<code>(4 × 0 + 1 × 1.220) / (4 + 1) = 0.244</code>。选 0.000，是邻居用了旧值 0，退回了显式；选 0.305，是分母只写了 1/r = 4，漏了邻居的权重 1；选 1.220，是漏了旧值那个「邻居」（1/r 的那一项），成了第 6 课的稳态式：1 号等于唯一邻居的值。"></p>
+      </div>
+
+      <div class="q" data-answer="0">
+        <p class="stem">2. 尺子 2 那根管（两面不透水，旧值 0、0、10、0、0），r = 0.6。显式第 1 步 3 号是 −2。隐式第 1 步 3 号会怎样？</p>
+        <div class="opts">
+          <button class="opt" type="button" aria-pressed="false">在 0 到 10 之间</button>
+          <button class="opt" type="button" aria-pressed="false">还是 −2</button>
+          <button class="opt" type="button" aria-pressed="false">比 10 更大</button>
+          <button class="opt" type="button" aria-pressed="false">直接变成 2</button>
+        </div>
+        <p class="fb" hidden data-fb="隐式的新值是旧值（权重 1/r）、邻居新值、墙值的加权平均，权重都是正的，所以落在 0 到 10 之间；实算是 5.448。选还是 −2，是以为隐式只改了算法不改结果；选比 10 更大，是以为 r 超限就会冲过头，那是显式的毛病；选直接变成 2，是 r 很大（如 100）时才接近，r = 0.6 时旧值那一项权重 1/0.6 = 1.667 还很大。"></p>
+      </div>
+
+      <div class="q" data-answer="3">
+        <p class="stem">3. 把隐式的 Δt 取成无穷大，每一步算出来的是什么？</p>
+        <div class="opts">
+          <button class="opt" type="button" aria-pressed="false">和旧值一样</button>
+          <button class="opt" type="button" aria-pressed="false">程序会发散</button>
+          <button class="opt" type="button" aria-pressed="false">全都变成 0</button>
+          <button class="opt" type="button" aria-pressed="false">稳态的答案</button>
+        </div>
+        <p class="fb" hidden data-fb="Δt 无穷大 ⇒ r 无穷大 ⇒ 1/r = 0，旧值那一项消失，更新式变成 <code>Σ m × C_对面 / Σm</code>，就是第 6 课的稳态方程。选和旧值一样，是把方向弄反了：Δt 趋于 0 时才几乎不变；选程序会发散，是把显式的毛病套到隐式上；选全都变成 0，是以为 1/r = 0 让整个分子变 0，可邻居那几项还在。"></p>
+      </div>
+
+      <div class="q" data-answer="1">
+        <p class="stem">4. 尺子 1，要算 4 × 100000 秒时的样子。下面哪个说法对？</p>
+        <div class="opts">
+          <button class="opt" type="button" aria-pressed="false">隐式一步最准</button>
+          <button class="opt" type="button" aria-pressed="false">不散架不等于准</button>
+          <button class="opt" type="button" aria-pressed="false">显式算不了它</button>
+          <button class="opt" type="button" aria-pressed="false">两种结果一样</button>
+        </div>
+        <p class="fb" hidden data-fb="参考值 3 号是 3.110：显式 r = 0.25 走 4 步得 2.734（差 0.376），隐式 r = 1 走 1 步得 4.545（差 1.435）。隐式只保证不出负值、不发散。选隐式一步最准，是把稳定当成了准确；选显式算不了，是忘了 r = 0.25 没超上限 1/2，显式完全能算；选两种一样，是忘了两者右边用的时刻不同，Δt 不小时结果就不同。"></p>
+      </div>
+
+    </div>
+  </section>
+
+  <footer>
+    <p><strong>下一步：</strong>代码和输出贴过来，我直接跑、按三把尺子点评。然后是砖块 10：水流推着墨走（对流）。</p>
+    <p><strong>主要参考：</strong>Versteeg &amp; Malalasekera《An Introduction to Computational Fluid Dynamics: The Finite Volume Method》第 8 章（非稳态扩散：显式、隐式和 Crank–Nicolson，后者是两者各取一半，以后再讲）。书里用热传导举例，把"温度"换成"浓度"读。</p>
+    <p><strong>卡住了就回到对话里问我。</strong></p>
+  </footer>
+
+</main>
+<script src="../assets/quiz.js"></script>
+</body>
+</html>
