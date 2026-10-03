@@ -43,7 +43,7 @@
     <p>这一课右边全用这一步<strong>结束</strong>时的值：自己用 <code>C_新</code>，邻居用 <code>C_对面,新</code>（钉死的墙值不变，还是墙值）：</p>
     <pre class="formula"><code>隐式：V × (C_新 − C_旧) / Δt = Σ w × (C_对面,新 − C_新)</code></pre>
     <p>这种做法叫<strong>隐式</strong>（英文 implicit：新值藏在方程两边，不能直接写出来，要解）。两种都是近似：Δt 秒里流量一直在变，显式按开头那一刻算，隐式按结尾那一刻算。</p>
-    <p>移项，把含 <code>C_新</code> 的放一边。两边乘 <code>Δt / V</code>，和第 8 课一样 <code>(Δt / V) × k = r</code>，钉死的墙 <code>2r</code>；记 m 为墙的倍数（内部墙 1，钉死的墙 2，不透水 0）：</p>
+    <p>移项，把含 <code>C_新</code> 的放一边。两边乘 <code>Δt / V</code>，和第 8 课一样 <code>(Δt / V) × k = r</code>，钉死的墙 <code>2r</code>；记 <code>m = w / k</code>，这面墙的权重是内部墙的几倍（内部墙 1，钉死的墙 2，不透水 0；每一项系数 <code>(Δt / V) × w = m × r</code>，第 8 课第二节）：</p>
     <pre class="formula"><code>C_新 − C_旧 = r × Σ m × (C_对面,新 − C_新)
 C_新 − C_旧 = r × Σ m × C_对面,新 − r × Σm × C_新
 C_新 + r × Σm × C_新 = C_旧 + r × Σ m × C_对面,新
