@@ -30,14 +30,14 @@ function wallTerm(wall: Wall, self: number): number {
 }
 
 // ===== 2. Δt 的上限：每个盒子自己留下的系数 1 − r × Σm 不能小于 0 =====
+// 均匀的一维管只有三种盒子：最左一个、最右一个、中间的（n ≥ 3 才有），不用逐个循环。
+//   最左：左墙 mL + 右邻 1      最右：左邻 1 + 右墙 mR      中间：1 + 1 = 2
+//   只有 1 个盒子：两边都是墙，mL + mR
 function maxR(n: number, left: Wall, right: Wall): number {
-  let worst = 0; // 所有盒子里最大的 Σm
-  for (let i = 0; i < n; i++) {
-    let m = 0;
-    m += i > 0 ? 1 : left.kind === "fixed" ? 2 : 0;
-    m += i < n - 1 ? 1 : right.kind === "fixed" ? 2 : 0;
-    worst = Math.max(worst, m);
-  }
+  const mL = left.kind === "fixed" ? 2 : 0;
+  const mR = right.kind === "fixed" ? 2 : 0;
+  const worst = n === 1 ? mL + mR : Math.max(mL + 1, mR + 1, n >= 3 ? 2 : 0); // 最大的 Σm
+  // worst = 0 只有一种情况：1 个盒子、两面都不透水，它永远不变，r 取多大都行
   return worst > 0 ? 1 / worst : Infinity;
 }
 
