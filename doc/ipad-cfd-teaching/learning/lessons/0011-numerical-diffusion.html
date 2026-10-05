@@ -1,0 +1,216 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>峰值去哪了</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@600;700&family=JetBrains+Mono:wght@400;500&display=swap">
+<link rel="stylesheet" href="../assets/lesson.css">
+</head>
+<body>
+<main class="sheet">
+
+  <header class="masthead">
+    <p class="eyebrow">第 10B 课 · 砖块 10 · ConvectionDiffusion1D.ts</p>
+    <h1>峰值去哪了</h1>
+    <p class="lede">第 10 课里没有扩散，墨却摊开了：5 个盒子、水从左往右、进水口浓度 0、初值 0、0、10、0、0、CFL = 0.5，走两步得 0、0、2.5、5、2.5，真实答案是 0、0、0、10、0。这一课算出它摊开得有多快，再把真正的扩散加回来。</p>
+    <p class="meta"><span>读约 15 分钟 + 写代码</span><span>前置：第 8 课（扩散，显式）、第 10 课（对流，迎风）</span><span>产出：<code>ConvectionDiffusion1D.ts</code></span></p>
+  </header>
+
+  <section>
+    <h2>一 · 先定验收尺子</h2>
+    <p>这一课的例子都用一根长管，免得墨跑到两头：</p>
+    <pre class="formula"><code>40 个盒子，水从左往右流，进水口浓度 0
+初值：10 号盒子是 10，其余全是 0
+显式；CFL = u × Δt / Δx；r = D × Δt / Δx²（第 8 课）
+走 10 步（墨离两头都还很远）</code></pre>
+    <p>先定义两个数，用来量墨"在哪"和"摊得多开"：</p>
+    <pre class="formula"><code>重心 = Σ (盒号 × 浓度) / Σ 浓度
+方差 = Σ [ 浓度 × (盒号 − 重心)² ] / Σ 浓度              单位：格²</code></pre>
+    <p>拿第 10 课那组数算一遍：3、4、5 号分别是 2.5、5、2.5，其余是 0。</p>
+    <pre class="formula"><code>重心 = (3 × 2.5 + 4 × 5 + 5 × 2.5) / 10 = (7.5 + 20 + 12.5) / 10 = 4
+方差 = [2.5 × (3 − 4)² + 5 × (4 − 4)² + 2.5 × (5 − 4)²] / 10 = (2.5 + 0 + 2.5) / 10 = 0.5</code></pre>
+    <p>尺子（第二到四节推出来；我这边实跑，全部吻合）：</p>
+    <ul>
+      <li><strong>总和</strong>一直是 10。</li>
+      <li><strong>重心</strong>每步右移 CFL 格：10 步后是 <code>10 + 10 × CFL</code>。CFL = 0.5 时是 15。</li>
+      <li><strong>方差</strong>每步增加 <code>CFL × (1 − CFL) + 2r</code> 格²：
+        CFL = 0.5、r = 0 时 10 步后 <code>10 × 0.25 = 2.5</code>；
+        CFL = 1、r = 0 时是 0；
+        CFL = 0.5、r = 0.1 时 <code>10 × (0.25 + 0.2) = 4.5</code>。</li>
+    </ul>
+  </section>
+
+  <section>
+    <h2>二 · 一步里，每个盒子的墨分成两份</h2>
+    <p>第 10 课的迎风更新式（c 就是 CFL）：</p>
+    <pre class="formula"><code>C_新(i) = (1 − c) × C_旧(i) + c × C_旧(i − 1)</code></pre>
+    <p>换个方向读：i 号盒子里原来的墨，下一步有 <code>1 − c</code> 留在 i 号，有 <code>c</code> 到了 i + 1 号。拿 c = 0.5、墨全在 3 号（10）走两步：</p>
+    <pre class="formula"><code>第 1 步：3 号的 10 → 留下 0.5 × 10 = 5，往右 0.5 × 10 = 5 到 4 号
+         得 3 号 5、4 号 5
+第 2 步：3 号的 5 → 留下 2.5，往右 2.5 到 4 号
+         4 号的 5 → 留下 2.5，往右 2.5 到 5 号
+         3 号 = 2.5；4 号 = 2.5 + 2.5 = 5；5 号 = 2.5</code></pre>
+    <p>这就是第 10 课的 0、0、2.5、5、2.5。墨像掷硬币一样每步被分成"不动"和"右移一格"两份，比例是 1 − c 和 c。走 n 步，右移了 k 格的那一份是 <code>10 × (n 选 k) × c^k × (1 − c)^(n − k)</code>：n = 2 时 k = 0、1、2 分别是 <code>10 × 1 × 0.25 = 2.5</code>、<code>10 × 2 × 0.25 = 5</code>、<code>10 × 1 × 0.25 = 2.5</code>。</p>
+  </section>
+
+  <section>
+    <h2>三 · 每步：重心移 c 格，方差多 c × (1 − c)</h2>
+    <p>看一份墨这一步移了多少格：比例 <code>1 − c</code> 移 0 格，比例 <code>c</code> 移 1 格。</p>
+    <pre class="formula"><code>平均移动 = (1 − c) × 0 + c × 1 = c                         格
+移动平方的平均 = (1 − c) × 0² + c × 1² = c
+这一步新增的方差 = 移动平方的平均 − 平均移动² = c − c² = c × (1 − c)   格²</code></pre>
+    <p>c = 0.5：每步重心右移 0.5 格、方差多 0.25 格²；两步后重心 3 + 1 = 4、方差 0.5，和第一节直接算的一样。</p>
+    <ul>
+      <li><strong>重心对</strong>：每步右移 c 格 = <code>u × Δt / Δx</code> 格，正好是水在 Δt 里走的距离。速度没算错。</li>
+      <li><strong>方差不对</strong>：真实的纯对流是整块平移，方差永远是 0。迎风每步凭空多出 <code>c × (1 − c)</code>。这就是<strong>数值扩散</strong>。</li>
+      <li>c = 1 时 <code>1 × 0 = 0</code>，不摊开（第 10 课：每步原样右移一格）；c = 0 时也是 0（根本不动）；c = 0.5 时最大，0.25。</li>
+    </ul>
+  </section>
+
+  <section>
+    <h2>四 · 换算成一个扩散系数</h2>
+    <p>真正的扩散也让方差变大。第 8 课的显式扩散 <code>C_新 = (1 − 2r) × C_旧 + r × C_左 + r × C_右</code>，同样换个方向读：一份墨有 <code>1 − 2r</code> 不动，<code>r</code> 往左一格，<code>r</code> 往右一格。</p>
+    <pre class="formula"><code>平均移动 = r × (−1) + r × (+1) = 0
+移动平方的平均 = r × 1 + r × 1 = 2r
+每步新增方差 = 2r 格² = 2r × Δx² 米² = 2 × (D × Δt / Δx²) × Δx² = 2 × D × Δt   米²</code></pre>
+    <p>每秒方差增加 <code>2D</code>，t 秒后方差 <code>2 × D × t</code>，标准差 <code>sqrt(2 × D × t)</code>：就是第 4 课的扩散距离 <code>L ≈ sqrt(2 × D × t)</code>。</p>
+    <p>把迎风多出来的方差也写成这个样子，就能看出它相当于多大的扩散系数 <code>D_num</code>：</p>
+    <pre class="formula"><code>每步多出的方差：c × (1 − c) 格² = c × (1 − c) × Δx² 米²
+令它等于 2 × D_num × Δt：
+D_num = c × (1 − c) × Δx² / (2 × Δt)
+      = (u × Δx / 2) × (1 − c)                  用了 c = u × Δt / Δx，即 Δx² / Δt = u × Δx / c</code></pre>
+    <p>代真实的数：水速 u = 0.001 m/s，Δx = 0.02 m，c = 0.5：</p>
+    <pre class="formula"><code>D_num = (0.001 × 0.02 / 2) × (1 − 0.5) = 0.00001 × 0.5 = 5 × 10⁻⁶ m²/s
+墨在水里真实的 D = 1 × 10⁻⁹ m²/s
+D_num / D = 5000</code></pre>
+    <p>算法偷偷加进去的扩散，是墨水真实扩散的 5000 倍。这样算出来的"墨怎么散开"，几乎全是算法的效果，不是墨的。</p>
+  </section>
+
+  <section>
+    <h2>五 · 把真正的扩散加回来</h2>
+    <p>净流入 = 水带进带出的 + 扩散进出的，两项直接相加（每一项都按第 8、10 课的样子乘 Δt / V）：</p>
+    <pre class="formula"><code>C_新 = C_旧 + c × (C_左 − C_旧) + r × [ (C_左 − C_旧) + (C_右 − C_旧) ]
+     = (1 − c − 2r) × C_旧 + (c + r) × C_左 + r × C_右</code></pre>
+    <p>c = 0.5、r = 0.1，墨全在 10 号（10），走第 1 步：</p>
+    <pre class="formula"><code>9 号  = r × C_右(10 号)                 = 0.1 × 10 = 1
+10 号 = (1 − 0.5 − 0.2) × 10            = 0.3 × 10 = 3
+11 号 = (c + r) × C_左(10 号)           = 0.6 × 10 = 6
+总和 = 1 + 3 + 6 = 10
+重心 = (9 × 1 + 10 × 3 + 11 × 6) / 10 = (9 + 30 + 66) / 10 = 10.5          右移 0.5 格 = c
+方差 = [1 × (9 − 10.5)² + 3 × (10 − 10.5)² + 6 × (11 − 10.5)²] / 10
+     = (2.25 + 0.75 + 1.5) / 10 = 0.45                                   = c × (1 − c) + 2r = 0.25 + 0.2</code></pre>
+    <p>方差的 0.45 里，0.2 来自真正的扩散，0.25 来自迎风。</p>
+    <p>上限：三个系数加起来是 1，自己那份 <code>1 − c − 2r</code> 不能是负的，所以 <code>c + 2r ≤ 1</code>。第 8 课是 <code>2r ≤ 1</code>（内部盒子），第 10 课是 <code>c ≤ 1</code>，两项一起就是两者加起来不超过 1。</p>
+  </section>
+
+  <section>
+    <h2>六 · 怎么让数值扩散变小</h2>
+    <p>从 <code>D_num = (u × Δx / 2) × (1 − c)</code> 直接看：</p>
+    <ul>
+      <li><strong>格子变细</strong>：Δx 从 0.02 m 减到 0.01 m，c 仍取 0.5，<code>D_num = (0.001 × 0.01 / 2) × 0.5 = 2.5 × 10⁻⁶</code>，减半。代价：格子多一倍，Δt 也减半（c 不变），步数多一倍。</li>
+      <li><strong>让 c 接近 1</strong>：c = 1 时 D_num = 0。只在一维、水速处处一样时管用；真实的流动各处速度不同，没法处处 c = 1。</li>
+      <li><strong>面上的值取得更好</strong>：迎风只用上游一个盒子的值。OpenFOAM 的 <code>linearUpwind</code> 用上游再往前推一点的值，本仓库 <code>tutorials/incompressibleFluid/pitzDailyScalarTransport/system/fvSchemes</code> 里就是 <code>div(phi,T) Gauss linearUpwind grad(T);</code>。中心差分（<code>Gauss linear</code>）完全没有这一项数值扩散，但第 10 课算过它会出负值；什么时候能放心用它（cavity 就用它），下一课讲。</li>
+    </ul>
+  </section>
+
+  <section>
+    <h2>七 · 对照 Stable Fluids 第 2 课</h2>
+    <p>那边第 2 课给的数值粘性是 <code>ν_num = h² × f × (1 − f) / (2 × dt)</code>，h 是格宽，f 是一步里回溯的格数（CFL ≤ 1 时就是 c）。把 h 换成 Δx、f 换成 c，就是第四节第三行 <code>c × (1 − c) × Δx² / (2 × Δt)</code>，同一个式子。</p>
+    <p>结论却相反：那边说数值粘性比水的真粘性大几个数量级，所以干脆不加真粘性；我们要算的是流体本身，必须让数值的部分远小于真实的部分（第四节那个 5000 倍就是反面例子）。这个结论不能借过来。</p>
+  </section>
+
+  <section>
+    <h2>八 · 程序的设计</h2>
+    <p>从第 10 课的 <code>Convection1D.ts</code> 改起，三处：</p>
+    <pre class="formula"><code>1. 盒子数改成 40，初值 10 号 = 10
+2. 每个盒子：cNew[i] = c[i] + CFL × (上游 − c[i]) + r × [(左 − c[i]) + (右 − c[i])]
+             两头的扩散项先不写（墨离两头很远，碰不到）；上游照旧，1 号的上游是进水口
+3. 每一步打印：总和、重心、方差，以及按公式该是多少：
+             重心应是 10 + s × CFL；方差应是 s × [CFL × (1 − CFL) + 2r]（s 是第几步）
+检查：CFL + 2r ≤ 1</code></pre>
+  </section>
+
+  <section>
+    <h2>九 · 易错点</h2>
+    <ol>
+      <li><strong>方差没减重心</strong>（写成 Σ 浓度 × 盒号² / Σ 浓度）→ 得到的数会随重心一起变大，CFL = 1 时也不是 0。</li>
+      <li><strong>扩散项用了 CFL</strong>、或对流项用了 r → 第五节第 1 步 9 号不是 1。</li>
+      <li><strong>扩散只写了一边</strong>（只有 <code>r × (C_左 − C_旧)</code>）→ 更新式变成 <code>(1 − c − r) × C_旧 + (c + r) × C_左</code>，墨只往右走：第五节第 1 步 9 号是 0，重心每步右移 <code>c + r</code> 格（c = 0.5、r = 0.1 时 0.6 格），比水还快。</li>
+      <li><strong>CFL + 2r &gt; 1</strong> → 例：CFL = 0.6、r = 0.25，自己那份 <code>1 − 0.6 − 0.5 = −0.1</code>，出负值。</li>
+    </ol>
+  </section>
+
+  <section>
+    <h2>十 · 在哪里跑、写完交什么</h2>
+    <p>iPad：TypeScript Playground（<a href="https://www.typescriptlang.org/play">typescriptlang.org/play</a>），点 Run，输出在 Logs 里。电脑：Node 22.18 或更新，<code>node ConvectionDiffusion1D.ts</code>。</p>
+    <ol>
+      <li><code>ConvectionDiffusion1D.ts</code> 全文</li>
+      <li>CFL = 0.5、r = 0；CFL = 1、r = 0；CFL = 0.5、r = 0.1 三种，走 10 步，每一步的重心和方差（和公式对照）</li>
+    </ol>
+  </section>
+
+  <section>
+    <h2>练习</h2>
+    <p>有计算，也有换了设定的题。凭理解做，别回头翻。</p>
+    <div class="quiz" id="quiz">
+
+      <div class="q" data-answer="0">
+        <p class="stem">1. 只有对流（r = 0），CFL = 0.5，墨全在一个盒子里（10）。走 3 步后方差是多少格²？</p>
+        <div class="opts">
+          <button class="opt" type="button" aria-pressed="false">0.75</button>
+          <button class="opt" type="button" aria-pressed="false">1.5</button>
+          <button class="opt" type="button" aria-pressed="false">0</button>
+          <button class="opt" type="button" aria-pressed="false">0.25</button>
+        </div>
+        <p class="fb" hidden data-fb="每步多 <code>0.5 × (1 − 0.5) = 0.25</code>，3 步 0.75。直接算也行：3 步后四个盒子是 1.25、3.75、3.75、1.25，重心在中间两格之间，方差 <code>[1.25 × 1.5² + 3.75 × 0.5² × 2 + 1.25 × 1.5²] / 10 = 0.75</code>。选 1.5，是只算了移动平方的平均 c，忘了减平均移动的平方 c²（<code>3 × 0.5</code>）；选 0，是以为没有扩散项就不会摊开；选 0.25，是只算了一步。"></p>
+      </div>
+
+      <div class="q" data-answer="2">
+        <p class="stem">2. 水速 u = 0.002 m/s，格宽 Δx = 0.01 m，迎风，CFL = 0.5。数值扩散系数 D_num 是多少 m²/s？</p>
+        <div class="opts">
+          <button class="opt" type="button" aria-pressed="false">1 × 10⁻⁵</button>
+          <button class="opt" type="button" aria-pressed="false">0</button>
+          <button class="opt" type="button" aria-pressed="false">5 × 10⁻⁶</button>
+          <button class="opt" type="button" aria-pressed="false">1 × 10⁻⁹</button>
+        </div>
+        <p class="fb" hidden data-fb="<code>(0.002 × 0.01 / 2) × (1 − 0.5) = 0.00001 × 0.5 = 5 × 10⁻⁶</code>。选 1 × 10⁻⁵，是漏了 (1 − CFL)；选 0，是以为没有扩散项就没有扩散；选 1 × 10⁻⁹，是写成了墨真实的 D，那是物理的，D_num 是算法加的。"></p>
+      </div>
+
+      <div class="q" data-answer="1">
+        <p class="stem">3. 只有对流、迎风。下面四个 CFL，哪一个每步摊开得最多？</p>
+        <div class="opts">
+          <button class="opt" type="button" aria-pressed="false">CFL = 1</button>
+          <button class="opt" type="button" aria-pressed="false">CFL = 0.5</button>
+          <button class="opt" type="button" aria-pressed="false">CFL = 0.1</button>
+          <button class="opt" type="button" aria-pressed="false">CFL = 0.9</button>
+        </div>
+        <p class="fb" hidden data-fb="每步多的方差 <code>c × (1 − c)</code>：c = 1 时 0，c = 0.5 时 0.25，c = 0.1 和 0.9 时都是 0.09。选 1，是以为步子越大摊得越开，可 c = 1 正好原样平移；选 0.1 或 0.9，两个其实一样大，都比 0.5 小。"></p>
+      </div>
+
+      <div class="q" data-answer="3">
+        <p class="stem">4. 对流加扩散，CFL = 0.6、r = 0.25。一个内部盒子自己留下的系数是多少？</p>
+        <div class="opts">
+          <button class="opt" type="button" aria-pressed="false">0.4</button>
+          <button class="opt" type="button" aria-pressed="false">0.15</button>
+          <button class="opt" type="button" aria-pressed="false">0.5</button>
+          <button class="opt" type="button" aria-pressed="false">−0.1</button>
+        </div>
+        <p class="fb" hidden data-fb="<code>1 − c − 2r = 1 − 0.6 − 0.5 = −0.1</code>，是负的，这组参数会出负值，不能用。选 0.4，是只算了对流；选 0.15，是扩散只减了一个 r（只写了一边）；选 0.5，是只算了扩散（1 − 2r）。"></p>
+      </div>
+
+    </div>
+  </section>
+
+  <footer>
+    <p><strong>下一步：</strong>代码和输出贴过来，我直接跑、按重心和方差的公式点评。然后讲 cavity 为什么能用中心差分：扩散够强时，中心差分的负系数会被扩散补回来。</p>
+    <p><strong>主要参考：</strong>Versteeg &amp; Malalasekera《An Introduction to Computational Fluid Dynamics: The Finite Volume Method》第 5 章（迎风格式的假扩散）。</p>
+    <p><strong>卡住了就回到对话里问我。</strong></p>
+  </footer>
+
+</main>
+<script src="../assets/quiz.js"></script>
+</body>
+</html>
