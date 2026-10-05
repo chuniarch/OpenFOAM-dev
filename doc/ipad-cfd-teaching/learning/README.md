@@ -25,6 +25,7 @@
 >   - 插页 C「多重网格」：https://claude.ai/artifact/5DBRkwsiKCBoCYbggxMjYK
    - 第 8 课「一滴墨散开」（显式，一维，TypeScript）：https://claude.ai/artifact/1cMA83SbDKCenBBMTxhKe4
    - 第 9 课「大步也不散架」（隐式，一维，TypeScript）：https://claude.ai/artifact/XZQg1xbajJSWSFk2Pje2BR
+   - 第 10 课「水流推着墨走」（纯对流、迎风、CFL，一维，TypeScript）：https://claude.ai/artifact/RU3ubjUGLXbvnFqkGMdaoH
 >   - 发布页用 `tools/build_artifact.py` 生成：内联共享组件，并检查相对引用、脚本开闭、练习解释是否完整
 >   - 仓库里的 `lessons/*.html` 是同一份源文件，共享 `assets/lesson.css` 与 `assets/quiz.js`；
 >     发布页是把这两个组件内联进去后的自包含版本

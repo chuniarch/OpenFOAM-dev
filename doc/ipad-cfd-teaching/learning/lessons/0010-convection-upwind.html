@@ -1,0 +1,238 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>水流推着墨走</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@600;700&family=JetBrains+Mono:wght@400;500&display=swap">
+<link rel="stylesheet" href="../assets/lesson.css">
+</head>
+<body>
+<main class="sheet">
+
+  <header class="masthead">
+    <p class="eyebrow">第 10 课 · 砖块 10 · Convection1D.ts</p>
+    <h1>水流推着墨走</h1>
+    <p class="lede">前面几课水是静止的，墨只靠扩散慢慢散。现在让水流起来：水流过一道墙，就把墨一起带过去。这一课只讲这一件事——被水带走的墨怎么算，暂时把扩散关掉。</p>
+    <p class="meta"><span>读约 15 分钟 + 写代码</span><span>前置：第 8 课（显式、两个数组）</span><span>产出：<code>Convection1D.ts</code></span></p>
+  </header>
+
+  <section>
+    <h2>零 · 为什么非讲对流不可</h2>
+    <p>一根管，5 个盒子，每格 Δx = 0.02 m。第 9 课算过：只靠扩散，墨抹平一个格子的浓度差要 <code>Δx² / D = 0.02² / 1e-9 = 400000</code> 秒，约 4.6 天。如果水以 u = 1 mm/s 流动，水走过一个格子只要 <code>Δx / u = 0.02 / 0.001 = 20</code> 秒。快了两万倍。现实里墨水靠水流（搅拌）散开，扩散只是零头。</p>
+  </section>
+
+  <section>
+    <h2>一 · 先定验收尺子</h2>
+    <p>这一课所有例子共用的条件：</p>
+    <pre class="formula"><code>一根细管等分成 5 个盒子，水从左往右流，速度 u 处处一样
+左端是进水口：流进来的水浓度是题目给的，记作 C_进
+右端是出水口：水从这里流出去
+这一课只有水流，没有扩散；用第 8 课的显式（右边全用这一步开头的值，两个数组）
+CFL = u × Δt / Δx：一步里水走了几个格子（第二节推出来）</code></pre>
+    <div class="scroll">
+    <table>
+      <thead><tr><th>#</th><th>设定</th><th>期望输出</th><th>抓什么错</th></tr></thead>
+      <tbody>
+        <tr><td>1</td><td>C_进 = 0；初值 0、0、10、0、0（墨在 3 号）；CFL = 1</td><td>第 1 步 <code>0 0 0 10 0</code>；第 2 步 <code>0 0 0 0 10</code>；第 3 步全是 0（墨从出口流走了）</td><td>方向、取上游的值</td></tr>
+        <tr><td>2</td><td>同第 1 条，CFL = 0.5</td><td>第 1 步 <code>0 0 5 5 0</code>；第 2 步 <code>0 0 2.5 5 2.5</code>；每一步总和的变化 = <code>CFL × (C_进 − 5 号旧值)</code></td><td>出口、记账</td></tr>
+        <tr><td>3</td><td>C_进 = 10；初值全 0（清水管）；CFL = 0.5</td><td>第 1 步 <code>5 0 0 0 0</code>；第 2 步 <code>7.5 2.5 0 0 0</code>；最后全是 10</td><td>进水口</td></tr>
+        <tr><td>4</td><td>同第 1 条，CFL = 1.5</td><td>第 1 步 <code>0 0 −5 15 0</code>，之后越跳越大</td><td>Δt 太大</td></tr>
+      </tbody>
+    </table>
+    </div>
+    <p>几个值不用算就知道：</p>
+    <ul>
+      <li><strong>C_进 = 0、初值 0、0、10、0、0、CFL = 1</strong>：一步里水正好走一个格子，每个盒子的水整个换成它上游那个盒子的水，墨原样往右挪一格。两步后挪到 5 号，第三步流出管子。</li>
+      <li><strong>C_进 = 10、初值全 0、CFL = 0.5</strong>：时间够长后不再变。不变就是每个盒子流进的等于流出的：1 号进来的是浓度 10 的水，流出的是 1 号自己的水，所以 1 号 = 10；2 号进来的是 1 号的水，所以 2 号 = 1 号 = 10；一路下去全是 10。</li>
+    </ul>
+    <p>我这边跑出来：C_进 = 10、初值全 0、CFL = 0.5 那道第 40 步最大改动小于 1e-6。只作对照。</p>
+  </section>
+
+  <section>
+    <h2>二 · 水把墨带过一道墙</h2>
+    <h3>每秒带过去多少墨</h3>
+    <p>水以速度 u 穿过一道面积为 A 的墙，每秒穿过的水的体积是</p>
+    <pre class="formula"><code>F = u × A          单位 m/s × m² = m³/s</code></pre>
+    <p>这些水里每立方米含墨 <code>C_面</code> 千克，所以每秒被水带过这道墙的墨是 <code>F × C_面</code>（kg/s）。和扩散的 <code>w × (对面 − 自己)</code> 不同：扩散靠浓度差，水不流也有；这里靠水流，浓度差为 0 也照样带。</p>
+
+    <h3>C_面 取多少：取上游</h3>
+    <p>穿过 2、3 号之间这道墙的水，是从哪来的？水从左往右流，它们刚才还在 2 号里。所以它们的浓度就是 2 号的浓度：</p>
+    <pre class="formula"><code>C_面 = 上游那个盒子的浓度</code></pre>
+    <p>这叫<strong>迎风</strong>（英文 upwind：风从哪边来，就取哪边的值）。</p>
+    <p>看起来更"公平"的做法是取两边的平均（叫<strong>中心差分</strong>）。它会出错，拿 C_进 = 0、初值 0、0、10、0、0、CFL = 0.5 算第 1 步的 2 号：</p>
+    <pre class="formula"><code>中心差分：2 号左墙的 C_面 = (1 号 + 2 号)/2 = 0，右墙的 C_面 = (2 号 + 3 号)/2 = (0 + 10)/2 = 5
+          2 号新值 = 0 + 0.5 × (0 − 5) = −2.5            负的墨
+迎风：    2 号左墙的 C_面 = 1 号 = 0，右墙的 C_面 = 2 号自己 = 0
+          2 号新值 = 0 + 0.5 × (0 − 0) = 0</code></pre>
+    <p>中心差分说"从 2 号流出去的水浓度是 5"，可 2 号里一点墨都没有。它让 2 号送出了自己没有的墨，所以变成负的。迎风不会：流出去的水就是这个盒子自己的水。我把中心差分接着跑下去：第 20 步 2 号是 −16.914，越来越大。</p>
+
+    <h3>一个盒子的账</h3>
+    <p>和第 8 课一样，盒子里墨的增加 = 净流入，右边全用这一步开头的值（显式）。以 i 号为例，左墙进、右墙出：</p>
+    <pre class="formula"><code>V × (C_新 − C_旧) / Δt = F × C_左邻,旧 − F × C_旧
+                          左墙流进（上游是左邻）   右墙流出（上游是自己）
+
+两边乘 Δt / V：
+C_新 = C_旧 + (F × Δt / V) × (C_左邻,旧 − C_旧)
+
+F × Δt / V = u × A × Δt / (A × Δx) = u × Δt / Δx = CFL
+
+C_新 = C_旧 + CFL × (C_左邻,旧 − C_旧)
+     = (1 − CFL) × C_旧 + CFL × C_左邻,旧</code></pre>
+    <p><strong>CFL 的意思</strong>：一步里水走了 <code>u × Δt</code>，占一个格子 Δx 的 <code>u × Δt / Δx</code>。也就是这个盒子里有 CFL 那么大比例的水流走了，换进来同样多上游的水。最后一行就是这句话：自己剩下 <code>1 − CFL</code>，上游来了 <code>CFL</code>，混匀。（CFL 是三个人名 Courant、Friedrichs、Lewy 的首字母，不用记。）</p>
+
+    <h3>两头</h3>
+    <ul>
+      <li><strong>1 号</strong>：上游是进水口，<code>C_左邻 = C_进</code>（题目给的）。</li>
+      <li><strong>5 号</strong>：右墙流出的水就是 5 号自己的水，带走 <code>F × C_5</code>。不需要知道管子外面是什么，所以出水口什么都不用给。</li>
+    </ul>
+
+    <h3>手算尺子：C_进 = 0、初值 0、0、10、0、0、CFL = 0.5</h3>
+    <pre class="formula"><code>第 1 步（旧值 0, 0, 10, 0, 0）
+1 号：0.5 × 0  + 0.5 × C_进 0 = 0
+2 号：0.5 × 0  + 0.5 × 0      = 0
+3 号：0.5 × 10 + 0.5 × 0      = 5
+4 号：0.5 × 0  + 0.5 × 10     = 5
+5 号：0.5 × 0  + 0.5 × 0      = 0
+
+第 2 步（旧值 0, 0, 5, 5, 0）
+3 号：0.5 × 5 + 0.5 × 0 = 2.5
+4 号：0.5 × 5 + 0.5 × 5 = 5
+5 号：0.5 × 0 + 0.5 × 5 = 2.5          1、2 号还是 0</code></pre>
+  </section>
+
+  <section>
+    <h2>三 · CFL 不能超过 1</h2>
+    <p>更新式 <code>C_新 = (1 − CFL) × C_旧 + CFL × C_左邻,旧</code> 的两个系数加起来是 1。和第 8 课一样，只要两个都不是负的，新值就是旧值的加权平均，不会冲过头、不会出负值。要求 <code>1 − CFL ≥ 0</code>，即 <code>CFL ≤ 1</code>。</p>
+    <p>物理上更直接：一步里流走的水不能比盒子里有的水还多。CFL = 1.5 等于说"这个盒子一步送走了一个半盒子的水"，不可能。算出来是这样（C_进 = 0、初值 0、0、10、0、0）：</p>
+    <pre class="formula"><code>3 号：(1 − 1.5) × 10 + 1.5 × 0  = −0.5 × 10 = −5
+4 号：(1 − 1.5) × 0  + 1.5 × 10 = 15</code></pre>
+    <p>第 2 步 4 号 −15、5 号 22.5，第 3 步 5 号 −33.75，越跳越大。换成真实单位：<code>u × Δt / Δx ≤ 1</code> ⇒ <code>Δt ≤ Δx / u = 0.02 / 0.001 = 20</code> 秒。</p>
+    <p>这和第 8 课扩散的上限是同一个道理：那里自己留下 <code>1 − r × Σm</code>，这里自己留下 <code>1 − CFL</code>，都不能是负的。</p>
+  </section>
+
+  <section>
+    <h2>四 · 总量记账</h2>
+    <p>每一道内部墙，上游那个盒子少了 <code>CFL × C_上游</code>，下游那个盒子多了同样的量，一进一出抵消。剩下的只有两头：进水口带进 <code>CFL × C_进</code>，出水口带走 <code>CFL × C_5</code>（这里按"每个盒子体积一样"把墨量写成浓度）。所以每一步：</p>
+    <pre class="formula"><code>五个盒子浓度之和的变化 = CFL × (C_进 − C_5,旧)</code></pre>
+    <p>核对 C_进 = 0、初值 0、0、10、0、0、CFL = 0.5：第 3 步开头 5 号是 2.5，变化 = <code>0.5 × (0 − 2.5) = −1.25</code>；第 2 步和是 10，第 3 步和是 <code>1.25 + 3.75 + 3.75 = 8.75</code>，正好少了 1.25。C_进 = 10、初值全 0、CFL = 0.5 的前几步，5 号还是 0，每步多 <code>0.5 × 10 = 5</code>：和依次是 5、10、15、20。</p>
+    <p>这把尺子在有进出口时代替了第 8 课的"总量不变"。</p>
+  </section>
+
+  <section>
+    <h2>五 · 峰值去哪了</h2>
+    <p>同样是 C_进 = 0、初值 0、0、10、0、0，比较两种 CFL 走过的同一段时间（水走了一个格子）：</p>
+    <pre class="formula"><code>真实答案（水把墨原样推走一格）       0  0  0    10   0
+CFL = 1，走 1 步                    0  0  0    10   0       一样
+CFL = 0.5，走 2 步                  0  0  2.5  5    2.5     峰值从 10 掉到 5，摊开了</code></pre>
+    <p>这一课根本没有扩散，墨却摊开了。原因在第二节最后那句"混匀"：每个盒子只存一个数。半步时墨的前沿停在 4 号中间，可 4 号只能存一个浓度，只好把前沿抹成整个盒子的平均。每一步都这样抹一次。这叫<strong>数值扩散</strong>：不是墨在扩散，是算法在抹。它有多大、怎么减小，是下一课的事。</p>
+  </section>
+
+  <section>
+    <h2>六 · OpenFOAM 里</h2>
+    <p>F 就是 OpenFOAM 的 <code>phi</code>：每个面上的体积流量（m³/s）。方程里的 <code>div(phi,T)</code> 就是"每个面上 <code>F × C_面</code> 加起来"。<code>C_面</code> 怎么取，写在 <code>system/fvSchemes</code> 的 <code>divSchemes</code> 里，例如 <code>div(phi,T) Gauss upwind;</code>。</p>
+    <p>OpenFOAM 的迎风，源码（<code>src/finiteVolume/interpolation/surfaceInterpolation/limitedSchemes/upwind/upwind.H</code>）里决定权重的就一行：</p>
+    <pre class="formula"><code>return pos0(this->faceFlux_);</code></pre>
+    <p><code>pos0(x)</code> 是"x ≥ 0 时为 1，否则为 0"：面上的流量往哪边走，面上的值就全取流出来的那一边，正是"取上游"。cavity 的速度用的却是 <code>div(phi,U) Gauss linear;</code>（中心差分，见本仓库 <code>tutorials/legacy/incompressible/icoFoam/cavity/cavity/system/fvSchemes</code>）。它在那里为什么不出事，和下一课有关。</p>
+  </section>
+
+  <section>
+    <h2>七 · 程序的设计</h2>
+    <p>从第 8 课的 <code>Diffusion1DTransient.ts</code> 改起：两个数组、一步步往前走、打印总和，都留着。只换掉"净流入"那一段：</p>
+    <pre class="formula"><code>准备：CFL = u × Δt / Δx（或直接给 CFL）；检查 CFL ≤ 1；数组 c 填初值
+
+重复，走 nSteps 步：
+    新建 cNew
+    对每个盒子 i：
+        上游值 ← i 是第一个盒子？ C_进 ： c[i−1]          ← 只读 c
+        cNew[i] ← c[i] + CFL × (上游值 − c[i])
+    打印：第几步、五个值、总和，以及 CFL × (C_进 − c[最后一个]) 这一步该变多少
+    c ← cNew</code></pre>
+    <p>和第 8 课相比：每个盒子只看一个邻居（上游），出水口不用写任何东西。</p>
+  </section>
+
+  <section>
+    <h2>八 · 易错点</h2>
+    <ol>
+      <li><strong>取了下游的值</strong>（<code>c[i+1]</code>）→ 墨往上游跑。C_进 = 0、初值 0、0、10、0、0、CFL = 1 时，第 1 步墨跑到 2 号，而不是 4 号。</li>
+      <li><strong>就地写回</strong>（只用一个数组，从左往右算，2 号用到的 1 号已经是新值）→ 墨一步就穿过整根管：C_进 = 0、初值 0、0、10、0、0、CFL = 1，第 1 步就全是 0，墨凭空没了。</li>
+      <li><strong>出水口写成"钉死 0"</strong>（5 号流出的水按浓度 0 算）→ 墨出不去：同样的初值、CFL = 0.5，总和一直是 10，第 40 步全堆在 5 号，是 10。</li>
+      <li><strong>用平均值当 C_面</strong>（中心差分）→ 上游出现负值：第 1 步 2 号 −2.5。</li>
+      <li><strong>CFL 超过 1</strong> → 第 1 步就出现负值和冲过头的值（−5、15）。</li>
+    </ol>
+  </section>
+
+  <section>
+    <h2>九 · 在哪里跑、写完交什么</h2>
+    <p>iPad：TypeScript Playground（<a href="https://www.typescriptlang.org/play">typescriptlang.org/play</a>），点 Run，输出在 Logs 里。电脑：Node 22.18 或更新，<code>node Convection1D.ts</code>。</p>
+    <ol>
+      <li><code>Convection1D.ts</code> 全文</li>
+      <li>验收表四道题各自的前 3 步（五个值和总和）</li>
+      <li>C_进 = 10、初值全 0、CFL = 0.5 那道：第几步最大改动小于 1e-6</li>
+    </ol>
+  </section>
+
+  <section>
+    <h2>练习</h2>
+    <p>有计算，也有换了设定的题。凭理解做，别回头翻。</p>
+    <div class="quiz" id="quiz">
+
+      <div class="q" data-answer="2">
+        <p class="stem">1. 5 个盒子，水从左往右流，C_进 = 10，初值全 0，CFL = 0.5。第 2 步后是 7.5、2.5、0、0、0。第 3 步后 2 号是多少？</p>
+        <div class="opts">
+          <button class="opt" type="button" aria-pressed="false">7.500</button>
+          <button class="opt" type="button" aria-pressed="false">1.250</button>
+          <button class="opt" type="button" aria-pressed="false">5.000</button>
+          <button class="opt" type="button" aria-pressed="false">2.500</button>
+        </div>
+        <p class="fb" hidden data-fb="<code>(1 − 0.5) × 2.5 + 0.5 × 7.5 = 1.25 + 3.75 = 5</code>：自己剩一半，上游 1 号来一半。选 7.500，是整个换成了上游的值，相当于把 CFL 当成 1；选 1.250，是取了下游 3 号（0）而不是上游 1 号：<code>0.5 × 2.5 + 0.5 × 0</code>；选 2.500，是算了却没把新值存下，还是旧值。"></p>
+      </div>
+
+      <div class="q" data-answer="1">
+        <p class="stem">2. 换成水<strong>从右往左</strong>流，进水口在右端，C_进 = 0；初值 0、0、10、0、0；CFL = 0.5。第 1 步后是？</p>
+        <div class="opts">
+          <button class="opt" type="button" aria-pressed="false">0 0 5 5 0</button>
+          <button class="opt" type="button" aria-pressed="false">0 5 5 0 0</button>
+          <button class="opt" type="button" aria-pressed="false">0 2.5 5 2.5 0</button>
+          <button class="opt" type="button" aria-pressed="false">0 0 10 0 0</button>
+        </div>
+        <p class="fb" hidden data-fb="水往左流，上游在右边：每个盒子 <code>0.5 × 自己 + 0.5 × 右邻</code>。2 号 <code>0.5 × 0 + 0.5 × 10 = 5</code>，3 号 <code>0.5 × 10 + 0.5 × 0 = 5</code>。选 0 0 5 5 0，是还按从左往右取了左邻；选 0 2.5 5 2.5 0，是两边都取，那是扩散的样子，对流只往一个方向推；选 0 0 10 0 0，是以为没有浓度差就不动，可对流靠的是水流，不是浓度差。"></p>
+      </div>
+
+      <div class="q" data-answer="3">
+        <p class="stem">3. 水速 u = 0.002 m/s，格宽 Δx = 0.01 m，只有对流、显式迎风。Δt 最大取多少秒？</p>
+        <div class="opts">
+          <button class="opt" type="button" aria-pressed="false">2.5</button>
+          <button class="opt" type="button" aria-pressed="false">10</button>
+          <button class="opt" type="button" aria-pressed="false">100000</button>
+          <button class="opt" type="button" aria-pressed="false">5</button>
+        </div>
+        <p class="fb" hidden data-fb="<code>CFL = u × Δt / Δx ≤ 1</code> ⇒ <code>Δt ≤ 0.01 / 0.002 = 5</code> 秒。选 2.5，是把 CFL = 0.5 当成了上限；选 10，是把 u 当成了 0.001；选 100000，是算成了扩散的时间尺度 <code>Δx² / D = 0.01² / 1e-9</code>，那是扩散的事，这题没有扩散。"></p>
+      </div>
+
+      <div class="q" data-answer="0">
+        <p class="stem">4. 5 个盒子，水从左往右流，C_进 = 10，CFL = 0.5。某一步开头 5 号是 4。这一步五个盒子浓度之和变多少？</p>
+        <div class="opts">
+          <button class="opt" type="button" aria-pressed="false">+3</button>
+          <button class="opt" type="button" aria-pressed="false">+5</button>
+          <button class="opt" type="button" aria-pressed="false">+6</button>
+          <button class="opt" type="button" aria-pressed="false">−3</button>
+        </div>
+        <p class="fb" hidden data-fb="内部墙一进一出抵消，只剩两头：<code>0.5 × (10 − 4) = +3</code>。选 +5，是只算了进水口、忘了出水口带走的；选 +6，是忘了乘 CFL；选 −3，是进出弄反了。"></p>
+      </div>
+
+    </div>
+  </section>
+
+  <footer>
+    <p><strong>下一步：</strong>代码和输出贴过来，我直接跑、按四道题点评。然后是下一课：数值扩散有多大（第五节那个"峰值去哪了"），以及把扩散加回来、两项一起算。</p>
+    <p><strong>主要参考：</strong>Versteeg &amp; Malalasekera《An Introduction to Computational Fluid Dynamics: The Finite Volume Method》第 5 章（对流–扩散：中心差分为什么出问题、迎风格式）。OpenFOAM 这边读上面那个 <code>upwind.H</code>。</p>
+    <p><strong>卡住了就回到对话里问我。</strong></p>
+  </footer>
+
+</main>
+<script src="../assets/quiz.js"></script>
+</body>
+</html>
