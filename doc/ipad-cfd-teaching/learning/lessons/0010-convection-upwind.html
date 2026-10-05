@@ -175,6 +175,121 @@ CFL = 0.5，走 2 步                  0  0  2.5  5    2.5     峰值从 10 掉�
   </section>
 
   <section>
+    <h2>十 · 参考答案：Convection1D.ts</h2>
+    <p>你要求直接给出全文（2026-10-05）。对应第七节的设计：<code>step</code> 走一步（只读 <code>c</code>、只写新数组 <code>cNew</code>，每个盒子 <code>(1 − CFL) × 自己 + CFL × 上游</code>，1 号的上游是进水口）；<code>run</code> 一步步往前走，每一步同时打印"总和实际变了多少"和第四节记账算出的 <code>CFL × (C_进 − 5 号旧值)</code>，两个数应该一样。</p>
+    <p>和第 8 课的 <code>Diffusion1DTransient.ts</code> 比：没有墙的种类（这一课两头是进水口、出水口），每个盒子只看一个邻居（上游），出水口不用写任何东西。</p>
+    <details class="answer" id="answer10">
+      <summary>展开 Convection1D.ts 全文</summary>
+      <pre class="formula"><code>// ============================================================
+// Convection1D.ts  —— 砖块 10：一维纯对流，显式迎风
+//
+// 物理：一根管等分成 N 个盒子，水从左往右以速度 u 流动，把墨一起带走；这一课没有扩散。
+//       左端是进水口，流进来的水浓度 C_进 是题目给的；右端是出水口。
+// 数学：V × (C_新 − C_旧) / Δt = F × C_上游,旧 − F × C_旧        F = u × A（每秒穿过一道墙的水的体积）
+//       ⇒ C_新 = (1 − CFL) × C_旧 + CFL × C_上游,旧               CFL = u × Δt / Δx
+//       迎风：穿过墙的水来自上游那个盒子，所以墙上的浓度取上游的值。
+//       1 号的上游是进水口（C_进）；出水口流出的就是最后一个盒子自己的水，什么都不用给。
+// 读写分开：右边只读 c，只写 cNew；一步算完再 c = cNew（第 8 课的两个数组）。
+// 运行：贴进 TypeScript Playground 点 Run；或 node Convection1D.ts（Node 22.18 起）。
+// ============================================================
+
+// ===== 1. 走一步 =====
+function step(c: number[], cfl: number, cIn: number): number[] {
+  const n = c.length;
+  const cNew: number[] = new Array(n).fill(0); // 新数组，不能写 const cNew = c
+  for (let i = 0; i &lt; n; i++) {
+    const upstream = i &gt; 0 ? c[i - 1] : cIn;    // 上游：左邻；1 号的上游是进水口
+    cNew[i] = (1 - cfl) * c[i] + cfl * upstream; // 自己剩 1 − CFL，上游来 CFL
+  }
+  return cNew;
+}
+
+// ===== 2. 打印用的小工具 =====
+function sum(c: number[]): number {
+  let s = 0;
+  for (const v of c) s += v;
+  return s;
+}
+function show(c: number[]): string {
+  return c.map((v) =&gt; v.toFixed(3).padStart(7)).join(&quot; &quot;);
+}
+
+// ===== 3. 一步步往前走 =====
+function run(
+  title: string,
+  initial: number[],
+  cfl: number,
+  cIn: number,
+  showSteps: number[],  // 要打印的步数
+  maxSteps: number,     // 最多走几步
+  tolerance = 1e-6,     // 一步里最大改动小于它，就报告停住
+): void {
+  console.log(`${title}（C_进 = ${cIn}，CFL = ${cfl}${cfl &gt; 1 ? &quot;，超过 1 了！&quot; : &quot;&quot;}）`);
+  console.log(`  第 0 步：${show(initial)}   总和 ${sum(initial).toFixed(3)}`);
+
+  let c = initial.slice();
+  for (let s = 1; s &lt;= maxSteps; s++) {
+    // 总量记账：内部墙一进一出抵消，只剩进水口带进、出水口带走
+    const expected = cfl * (cIn - c[c.length - 1]);
+    const cNew = step(c, cfl, cIn);
+
+    let maxChange = 0;
+    for (let i = 0; i &lt; c.length; i++) maxChange = Math.max(maxChange, Math.abs(cNew[i] - c[i]));
+    const actual = sum(cNew) - sum(c);
+    c = cNew;
+
+    if (showSteps.includes(s)) {
+      console.log(`  第 ${s} 步：${show(c)}   总和 ${sum(c).toFixed(3)}   总和变化 ${actual.toFixed(3)}（记账算出 ${expected.toFixed(3)}）`);
+    }
+    if (maxChange &lt; tolerance) {
+      console.log(`  第 ${s} 步最大改动 &lt; ${tolerance}，停住：${show(c)}`);
+      return;
+    }
+  }
+}
+
+// ===== 4. 第 10 课验收表里的四道题 =====
+const drop = [0, 0, 10, 0, 0]; // 墨在 3 号
+const clean = [0, 0, 0, 0, 0]; // 清水管
+
+run(&quot;墨在 3 号，水走一格一步&quot;, drop, 1, 0, [1, 2, 3], 3);
+run(&quot;墨在 3 号，水走半格一步&quot;, drop, 0.5, 0, [1, 2, 3], 3);
+run(&quot;清水管，进水口浓度 10&quot;, clean, 0.5, 10, [1, 2, 3, 4], 1000);
+run(&quot;墨在 3 号，CFL 太大&quot;, drop, 1.5, 0, [1, 2, 3], 3);
+
+// 换成真实单位：CFL = u × Δt / Δx
+const u = 0.001;      // 水速 1 mm/s [m/s]
+const dx = 0.1 / 5;   // 管长 0.1 m，5 个盒子 [m]
+console.log(`CFL = 0.5 时一步 Δt = ${(0.5 * dx / u).toFixed(1)} 秒；CFL ≤ 1 要求 Δt ≤ ${(dx / u).toFixed(1)} 秒`);</code></pre>
+      <p><strong>运行后应该看到：</strong></p>
+      <pre class="formula"><code>墨在 3 号，水走一格一步（C_进 = 0，CFL = 1）
+  第 0 步：  0.000   0.000  10.000   0.000   0.000   总和 10.000
+  第 1 步：  0.000   0.000   0.000  10.000   0.000   总和 10.000   总和变化 0.000（记账算出 0.000）
+  第 2 步：  0.000   0.000   0.000   0.000  10.000   总和 10.000   总和变化 0.000（记账算出 0.000）
+  第 3 步：  0.000   0.000   0.000   0.000   0.000   总和 0.000   总和变化 -10.000（记账算出 -10.000）
+墨在 3 号，水走半格一步（C_进 = 0，CFL = 0.5）
+  第 0 步：  0.000   0.000  10.000   0.000   0.000   总和 10.000
+  第 1 步：  0.000   0.000   5.000   5.000   0.000   总和 10.000   总和变化 0.000（记账算出 0.000）
+  第 2 步：  0.000   0.000   2.500   5.000   2.500   总和 10.000   总和变化 0.000（记账算出 0.000）
+  第 3 步：  0.000   0.000   1.250   3.750   3.750   总和 8.750   总和变化 -1.250（记账算出 -1.250）
+清水管，进水口浓度 10（C_进 = 10，CFL = 0.5）
+  第 0 步：  0.000   0.000   0.000   0.000   0.000   总和 0.000
+  第 1 步：  5.000   0.000   0.000   0.000   0.000   总和 5.000   总和变化 5.000（记账算出 5.000）
+  第 2 步：  7.500   2.500   0.000   0.000   0.000   总和 10.000   总和变化 5.000（记账算出 5.000）
+  第 3 步：  8.750   5.000   1.250   0.000   0.000   总和 15.000   总和变化 5.000（记账算出 5.000）
+  第 4 步：  9.375   6.875   3.125   0.625   0.000   总和 20.000   总和变化 5.000（记账算出 5.000）
+  第 40 步最大改动 &lt; 0.000001，停住： 10.000  10.000  10.000  10.000  10.000
+墨在 3 号，CFL 太大（C_进 = 0，CFL = 1.5，超过 1 了！）
+  第 0 步：  0.000   0.000  10.000   0.000   0.000   总和 10.000
+  第 1 步：  0.000   0.000  -5.000  15.000   0.000   总和 10.000   总和变化 0.000（记账算出 0.000）
+  第 2 步：  0.000   0.000   2.500 -15.000  22.500   总和 10.000   总和变化 0.000（记账算出 0.000）
+  第 3 步：  0.000   0.000  -1.250  11.250 -33.750   总和 -23.750   总和变化 -33.750（记账算出 -33.750）
+CFL = 0.5 时一步 Δt = 10.0 秒；CFL ≤ 1 要求 Δt ≤ 20.0 秒</code></pre>
+      <p>这份代码我在这边用 Node 22.22 跑过，上面是原样输出；也用 TypeScript 严格模式做过类型检查，没有报错。每一行都能和正文对上：CFL = 1 每步右移一格、CFL = 0.5 的 <code>0 0 5 5 0</code> 和 <code>0 0 2.5 5 2.5</code> 见第二节手算，清水管进水口浓度 10 每步总和多 5、第 40 步全 10 见第一、四节，CFL = 1.5 的 −5、15 见第三节。</p>
+    </details>
+  </section>
+
+  <section>
     <h2>练习</h2>
     <p>有计算，也有换了设定的题。凭理解做，别回头翻。</p>
     <div class="quiz" id="quiz">
