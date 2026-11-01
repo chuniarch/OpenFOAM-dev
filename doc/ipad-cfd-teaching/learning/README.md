@@ -27,6 +27,7 @@
    - 第 9 课「大步也不散架」（隐式，一维，TypeScript）：https://claude.ai/artifact/XZQg1xbajJSWSFk2Pje2BR
    - 第 10 课「水流推着墨走」（纯对流、迎风、CFL，一维，TypeScript）：https://claude.ai/artifact/RU3ubjUGLXbvnFqkGMdaoH
    - 第 10B 课「峰值去哪了」（数值扩散、对流 + 扩散）：https://claude.ai/artifact/1ZCmU6yoTYTioHwN6qMgt2
+>   - 第 10C 课样稿「同一个盒子，为什么不再是负数？」：[本地 HTML](lessons/0012-central-difference.html)；[配套速查卡](reference/0002-central-difference-card.html)。2026-11-02 产出，待学习者阅读与反馈。
 >   - 发布页用 `tools/build_artifact.py` 生成：内联共享组件，并检查相对引用、脚本开闭、练习解释是否完整
 >   - 仓库里的 `lessons/*.html` 是同一份源文件，共享 `assets/lesson.css` 与 `assets/quiz.js`；
 >     发布页是把这两个组件内联进去后的自包含版本
@@ -190,8 +191,9 @@
    并由此补上「数值扩散」这一课（见砖块 10 末尾）。
 🔄 **当前模式（2026-08-29 起）：按砖块顺序重走一遍。** 每砖讲透、结尾答题才过关。
    本文件从此只当**索引与备忘**，不作为「已掌握」的凭证 —— 写过 ≠ 讲透。
-   **当前位置（2026-09-29）：插页 C 第二节已过；学习者要求开始第 7 课，并且代码改用 TypeScript。
-   第 6 课的代码部分和第 7 课整课已改成 TypeScript（同一链接），等他读第 7 课、做练习、写 `Diffusion2D.ts`**。
+   **最新产出（2026-11-02）：第 10C 课样稿 `lessons/0012-central-difference.html`，讲中心差分加扩散的三份权重、格尺度条件和显式步长条件。
+   第 10B 课与 `ConvectionDiffusion1D.ts` 已于 2026-10-06 产出；第 10C 课正在交给学习者审阅。课文存在不等于已掌握，练习通过情况仍以学习记录和本人回答为准。**
+   历史位置（2026-09-29）：插页 C 第二节已过，开始第 7 课，代码改用 TypeScript。以下保留当时的背景；最新接续点见 `HANDOFF.md` 顶部。
    插页 B 第 1 版被评为「汇报结论」，已按推导重写为第 2 版（同一链接），见 LR-0010、NOTES 第 14 条。
    插页 B 第二节又改为第 3 版：墙外那缸水列为邻居，从「进 = 出」推更新式与误差式，见 LR-0011。
    插页 B 第 4 版（2026-09-28）：补上高斯-塞德尔因子 cos² 的推导（歪一点的正弦，同一个三角恒等式），
@@ -215,13 +217,13 @@
 
 ## 新对话开场白（把下面整段复制到新对话即可启动）
 
-交接说明见 `HANDOFF.md`（截至第 7 课开始，2026-09-29）：已讲内容逐条写全条件、学习者卡在哪、挂着的题、下一步。
+交接说明见 `HANDOFF.md` 顶部的当前快照；后面的日期记录保留历史问题与已发生的纠正。
 
 ```
-先执行：git fetch origin && git checkout -B openfoam-learning/main origin/openfoam-learning/main
-本会话直接在该分支上工作并推送，不要新建 claude/* 分支。
+先核对当前分支和未提交改动，安全切到 openfoam-learning/main，不要强制覆盖工作区。
+本会话直接在该分支上工作，不要新建 claude/* 分支。
 
-先读 doc/ipad-cfd-teaching/learning/HANDOFF.md（交接说明，截至第 7 课开始），再读同目录的 NOTES.md（硬约束）。
-我在读第 7 课（TypeScript 版），要写 Diffusion2D.ts；进度和挂着的题在 HANDOFF.md 第四、五节。
+先读 doc/ipad-cfd-teaching/learning/HANDOFF.md 顶部快照，再读同目录的 NOTES.md（硬约束）。
+最新产出是第 10C 课样稿；先核对本人读到哪里、哪些问题仍没解决，再继续讲，不把课文产出当成已掌握。
 代码一律用 TypeScript。提到之前的任何内容，把条件、做法、公式当场写全；表格里的数要给算式。
 ```

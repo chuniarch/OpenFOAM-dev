@@ -1,0 +1,70 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>速查卡 · 中心差分加扩散</title>
+<link rel="stylesheet" href="../assets/lesson.css">
+</head>
+<body>
+<main class="sheet">
+  <header class="masthead">
+    <p class="eyebrow">速查卡 02 · 第 10C 课配套 · 打印友好</p>
+    <h1>先看右邻，再看自己</h1>
+    <p class="lede">中心差分加扩散：一步是否制造新极值，检查三份权重。</p>
+    <p class="meta"><span><a href="../lessons/0012-central-difference.html#scene">回到完整课文</a></span><span>2026-11-02 · 课文已产出，掌握情况待确认</span></p>
+  </header>
+  <section>
+    <h2>适用条件</h2>
+    <p>一维、等宽盒子、恒定水速 u ≥ 0 向右、恒定 D ≥ 0；只看内部盒子，没有源；时间用显式，所有项读取同一步开头的浓度。C_L、C_P、C_R 分别是左邻、自己、右邻的旧浓度。</p>
+    <pre class="formula"><code>V = A × Δx
+F = u × A             水的体积流率 [m³/s]
+k = D × A / Δx        内部面的扩散权重 [m³/s]
+c = F × Δt / V = u × Δt / Δx
+r = k × Δt / V = D × Δt / Δx²</code></pre>
+  </section>
+  <section>
+    <h2>从面的流量到三份权重</h2>
+    <pre class="formula"><code>净流入 = F × (C_L + C_P)/2 − F × (C_P + C_R)/2
+         + k × (C_L − C_P) + k × (C_R − C_P)
+
+C_新 = C_P + (Δt/V) × 净流入
+     = (r + c/2) × C_L
+       + (1 − 2r) × C_P
+       + (r − c/2) × C_R
+
+三份权重之和 = (r+c/2) + (1−2r) + (r−c/2) = 1</code></pre>
+    <p>三个权重全部非负，才对任意旧邻值保证新值仍在旧邻值的范围内。</p>
+  </section>
+  <section>
+    <h2>两项检查</h2>
+    <pre class="formula"><code>右邻不负：r ≥ c/2
+           D &gt; 0 时等价于 u × Δx / D ≤ 2
+
+自己不负：r ≤ 0.5
+           等价于 Δt ≤ Δx² / (2D)，D &gt; 0
+
+水向左流：交换左右邻，条件用 r ≥ |c|/2</code></pre>
+    <p>D = 0 且 u ≠ 0、Δt &gt; 0 时，总有一个邻居权重为负。u = D = 0 时，三个权重是 0、1、0，浓度保持不变。</p>
+    <p>这里是“不制造新极值”的条件；不等同于所有可能的线性稳定条件，也不涵盖边界、非均匀网格或完整的二维求解器。</p>
+  </section>
+  <section>
+    <h2>一个可核对的算例</h2>
+    <p>40 个盒子，A = 1 m²、Δx = 1 m、u = 1 m/s 向右、D = 0.6 m²/s、Δt = 0.5 s；开始时只有 10 号浓度 10 kg/m³，其余与进水口全 0。</p>
+    <pre class="formula"><code>c = 1 × 0.5 / 1 = 0.5
+r = 0.6 × 0.5 / 1² = 0.3
+左、自己、右权重 = 0.55、0.4、0.05
+
+9 号新值  = 0.55 × 0 + 0.4 × 0 + 0.05 × 10 = 0.5
+10 号新值 = 0.55 × 0 + 0.4 × 10 + 0.05 × 0 = 4
+11 号新值 = 0.55 × 10 + 0.4 × 0 + 0.05 × 0 = 5.5
+墨量合计 = (0.5 + 4 + 5.5) × 1 m³ = 10 kg</code></pre>
+  </section>
+  <footer>
+    <p>只有题目给定的物理参数才能改。缩小 Δt 不改变 <code>u × Δx / D</code>；单纯增大材料扩散系数来掩盖格式问题，会改变要算的物理。</p>
+    <p>cavity 对照限定为 <code>tutorials/legacy/incompressible/icoFoam/cavity/cavity/</code>。用顶盖速度作尺度：<code>1 × (0.1/20) / 0.01 = 0.5</code>。时间项是隐式，本卡的显式步长上限不能直接套用。</p>
+    <p>来源：<a href="https://doc.cfd.direct/notes/cfd-general-principles/diagonal-dominance">CFD Direct · Notes on CFD §5.5</a>；<a href="https://doc.cfd.direct/openfoam/user-guide-v13/fvschemes">官方数值格式指南</a>。推导与算例见<a href="../lessons/0012-central-difference.html#weights">第 10C 课第三节</a>。</p>
+  </footer>
+</main>
+</body>
+</html>

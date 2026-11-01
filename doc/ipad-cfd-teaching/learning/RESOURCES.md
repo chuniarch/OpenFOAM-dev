@@ -43,6 +43,17 @@
 - [OpenFOAM 官方资源页（openfoam.org）](https://openfoam.org/resources/)
   用于：版本、源码、教程算例的权威入口。
 
+- [Greenshields & Weller, *Notes on CFD* §5.5 — Diagonal dominance](https://doc.cfd.direct/notes/cfd-general-principles/diagonal-dominance)
+  第 10C 课首选延伸阅读；用于核对中心插值的对流系数怎样与扩散系数抵消，及均匀网格上的格尺度阈值。
+  课内独立推导一维显式更新，区分非负权重条件与一般线性稳定性；不把矩阵收敛条件当作完整 PISO 验收。2026-11-02 在线核实。
+
+- [OpenFOAM v13 用户指南 §4.5 — Numerical schemes](https://doc.cfd.direct/openfoam/user-guide-v13/fvschemes)
+  第 10C 课用于核对 `linear`、`limitedLinear`、`Euler` 的含义；`linear` 本身不保证普遍有界，`Euler` 时间项为隐式。2026-11-02 在线核实。
+
+- [OpenFOAM v10 用户指南 §2.1 — Lid-driven cavity flow](https://doc.cfd.direct/openfoam/user-guide-v10/cavity)
+  对照本课程使用的旧版 icoFoam 算例：边长 0.1 m、20 × 20、顶盖 1 m/s、ν = 0.01 m²/s。
+  本地路径已移到 `tutorials/legacy/incompressible/icoFoam/cavity/cavity/`；另一个 `tutorials/incompressibleFluid/cavity/` 配置不同。2026-11-02 在线及本地核实。
+
 ## 交叉线：Stable Fluids / FLIP（实时图形路线）
 
 学习者同时在学另一门课，走的是 Stam 的 Stable Fluids → 3D FLIP。**两条线在讲同一条物理定律，

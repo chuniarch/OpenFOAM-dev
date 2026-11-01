@@ -1,4 +1,18 @@
-# 交接说明：CFD 学习阶梯，截至第 7 课开始
+# 交接说明：CFD 学习阶梯
+
+## 当前交接快照 · 2026-11-02
+
+- 分支：`openfoam-learning/main`。本次已实查本地与远程提交，接续了仓库中的 Claude 课程材料。
+- 学习者明确调用本机 `/Users/zhanghaoting/.agents/skills/teach/SKILL.md`，随后要求「你先继续，我先看看你出的成果」。因此先提供下一课样稿，不据此登记已掌握。
+- 最新课程样稿：`lessons/0012-central-difference.html`（第 10C 课），配套 `reference/0002-central-difference-card.html`。从同一个盒子算出 −2.5、加扩散后算出 +0.5，推三份权重与两个不同条件；有三道即时反馈练习。等待学习者审阅。
+- 校验边界：7 组算例已用独立的逐面流量公式复算，含缩短步长、加密盒子、增大步长的反例；3 道练习共 12 个选择路径在 Node 的 DOM mock 中检查过反馈与锁定逻辑；HTML 结构、本地链接/锚点、等长选项和既有打包器检查通过。浏览器工具拒绝 `file://` 本地协议，**未完成真实浏览器点击或视觉验收**，没有启动服务器或改走其他浏览器绕过。
+- 前一课：第 10B 课「峰值去哪了」，参考代码 `code/ConvectionDiffusion1D.ts`，最后由 Claude 于 2026-10-06 补入。课程已产出，学习者掌握程度待其回答确认。
+- 继续沿用 `NOTES.md`：TypeScript、水与墨水、先写全条件并手算、一次一件事、结尾只问一道题；未经「打个样」不代写学习者的求解器。
+- 路径已核实：本课程的 cavity 是 `tutorials/legacy/incompressible/icoFoam/cavity/cavity/`（Gauss linear、ν = 0.01）。另一份 `tutorials/incompressibleFluid/cavity/` 使用 limitedLinearV、ν = 1e-05，不能混用。cavity 用隐式 Euler，不套用课内显式步长条件。
+- 本次开始前工作区已有 88 个 OpenFOAM 源文件显示修改。已经记录并逐个核对哈希，切换分支保留了全部内容；后续仍须保护，不能归入教学材料的提交。
+- **以下为从 2026-09-29 起累积的原始交接历史。** 其中“当前在第 7 课”、未回答问题等，应按后面日期记录判断是否已经推进，不直接当成现在的待办。
+
+---
 
 > 写于 2026-09-29，出自会话 `session_015Jk9J73ix6BRyxs31T8ExB`（claude.ai/code）；
 > 同日在会话 `session_01XKDJxT6K12tcoY8mDpNhDH` 更新：代码改用 TypeScript，开始第 7 课。
@@ -340,10 +354,10 @@
 
 ## 五、下一步
 
-1. 他读第 7 课、做练习、写 `Diffusion2D.ts`，发来代码和输出 → 在这边用 node 直接跑，按第 7 课五把尺子点评。
-2. 插页 C 第三节那道并盒子的题（两个残差相加 3.333k + 1.667k = 5k，与直接算大盒子两面外墙的 5k 相等），他想回去做时再接。
-3. 砖块 8（滴一滴墨看它随时间散开，显式）→ 砖块 9（隐式）→ 砖块 10（水流推着墨走，对流；⏰ AImimiEngine 提醒）。
-4. 共轭梯度（CG / PCG）挪到砖块 11 之前讲（cavity 的压力用 PCG）→ 砖块 11（PISO，icoFoam 的 cavity）。
+1. 等学习者审阅第 10C 课样稿；若在第 10B 课仍有疑问，先回到具体算式答疑。依据其回答决定讲课位置，不登记未经确认的掌握。
+2. 第 10C 课结尾只有一道对话检查题：40 个盒子，A = 1 m²、Δx = 1 m、u = 1 m/s 向右、D = 0.5 m²/s、Δt = 0.5 s，开始仅 10 号浓度 10，其余与进水口全 0；问 9 号新浓度，并要求把两面流量写全。答案 0，但须看其推导再确认理解。
+3. 若提交 `ConvectionDiffusion1D.ts` 或其他学习者代码，仍按本课适用条件与验收尺子实跑点评。未经请求不增加新的完整求解器参考答案。
+4. 共轭梯度（CG / PCG）仍安排在砖块 11 之前，再进压力—速度耦合 PISO。第 10C 的局部权重分析不能作为完整 PISO 稳定性或验收证据。
 
 ---
 
@@ -375,10 +389,10 @@
 ## 七、新对话开场白（整段复制）
 
 ```
-先执行：git fetch origin && git checkout -B openfoam-learning/main origin/openfoam-learning/main
-本会话直接在该分支上工作并推送，不要新建 claude/* 分支。
+先核对当前分支和未提交改动，安全切到 openfoam-learning/main，不要强制覆盖工作区。
+本会话直接在该分支上工作，不要新建 claude/* 分支。
 
-先读 doc/ipad-cfd-teaching/learning/HANDOFF.md（交接说明，截至第 7 课开始），再读同目录的 NOTES.md（硬约束）。
-我在读第 7 课（TypeScript 版），要写 Diffusion2D.ts；进度和挂着的题在 HANDOFF.md 第四、五节。
+先读 doc/ipad-cfd-teaching/learning/HANDOFF.md 顶部当前快照，再读同目录的 NOTES.md（硬约束）。
+最新产出是第 10C 课样稿；先核对本人读到哪里、哪些问题仍没解决，再继续讲，不把课文产出当成已掌握。
 代码一律用 TypeScript。提到之前的任何内容，把条件、做法、公式当场写全；表格里的数要给算式。
 ```

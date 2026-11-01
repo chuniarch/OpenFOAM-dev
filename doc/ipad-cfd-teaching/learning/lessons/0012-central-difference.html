@@ -1,0 +1,259 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>中心差分什么时候能用 · 第 10C 课</title>
+<link rel="stylesheet" href="../assets/lesson.css">
+</head>
+<body>
+<main class="sheet">
+  <header class="masthead">
+    <p class="eyebrow">第 10C 课 · 砖块 10 · 中心差分与扩散</p>
+    <h1>同一个盒子，<br>为什么不再是负数？</h1>
+    <p class="lede">一个清水盒子，右边有墨，水向右流。只算中心差分，它下一步竟然变成 −2.5；把扩散加进去，同一个盒子变成 +0.5。这一课把两次计算都写出来。</p>
+    <p class="meta"><span>正文约 10 分钟 · 练习另算</span><span>目标：看出哪个权重会变负</span><span>这次先手算，不写程序</span></p>
+  </header>
+
+  <nav aria-label="本课目录" class="callout">
+    <span class="label">顺着这条线读</span>
+    <p><a href="#negative">算出负数</a> → <a href="#diffusion">加回扩散</a> → <a href="#weights">把三份权重拆开</a> → <a href="#cavity">核对 cavity</a> → <a href="#practice">动手算</a></p>
+    <p>前一课：<a href="https://claude.ai/artifact/1ZCmU6yoTYTioHwN6qMgt2">第 10B 课「峰值去哪了」</a>。这页用到的条件和公式都会重新写全。</p>
+  </nav>
+
+  <section id="scene">
+    <h2>先把水管和验收尺子摆好</h2>
+    <p>下面是<strong>为方便手算选的教学例子</strong>，D 的数值不代表现实墨水的材料参数：</p>
+    <pre class="formula"><code>一根管等分成 40 个盒子
+每个盒子宽 Δx = 1 m，管截面 A = 1 m²
+每个盒子的体积 V = A × Δx = 1 m³
+水从左往右，速度 u = 1 m/s
+一步 Δt = 0.5 s；只计算这一步
+开始时：10 号浓度 10 kg/m³，其余盒子全是 0
+进水口浓度 0；墨离管的两端很远</code></pre>
+    <figure>
+      <svg viewBox="0 0 640 170" role="img" aria-labelledby="scene-title scene-desc">
+        <title id="scene-title">只看管内 8 到 12 号盒子，墨集中在 10 号</title>
+        <desc id="scene-desc">水向右流。8、9、11、12 号浓度为零，10 号浓度为十。本课先算紧挨墨水左边的 9 号。</desc>
+        <path d="M34 26 H602 M590 18 L602 26 L590 34" fill="none" stroke="var(--accent)" stroke-width="2"/>
+        <text x="320" y="18" text-anchor="middle" fill="var(--ink)" font-size="16">水向右流 · 1 m/s</text>
+        <g stroke="var(--rule)" stroke-width="2">
+          <rect x="28" y="48" width="116" height="78" rx="4" fill="var(--surface)"/>
+          <rect x="145" y="48" width="116" height="78" rx="4" fill="var(--surface)" stroke="var(--accent)" stroke-width="3"/>
+          <rect x="262" y="48" width="116" height="78" rx="4" fill="var(--accent)"/>
+          <rect x="379" y="48" width="116" height="78" rx="4" fill="var(--surface)"/>
+          <rect x="496" y="48" width="116" height="78" rx="4" fill="var(--surface)"/>
+        </g>
+        <g text-anchor="middle" font-size="26" fill="var(--ink)">
+          <text x="86" y="96">0</text><text x="203" y="96">0</text>
+          <text x="320" y="96" fill="var(--surface)">10</text>
+          <text x="437" y="96">0</text><text x="554" y="96">0</text>
+        </g>
+        <g text-anchor="middle" font-size="16" fill="var(--ink)">
+          <text x="86" y="151">8 号</text><text x="203" y="151">先算 9 号</text>
+          <text x="320" y="151">10 号</text><text x="437" y="151">11 号</text><text x="554" y="151">12 号</text>
+        </g>
+      </svg>
+      <figcaption>图中数字是开始时的浓度，单位 kg/m³；没有画出的盒子也是 0。所有盒子都按这同一份开始值计算。</figcaption>
+    </figure>
+    <p><strong>先定验收尺子：</strong>开始时浓度全在 0 到 10 之间，进水口也是 0。这一步若出现负浓度，就已经算错了。后面要找到一个条件，让每个内部盒子的新浓度都留在原有范围内。</p>
+  </section>
+
+  <section id="negative">
+    <h2>一 · 中心差分怎样算出 −2.5</h2>
+    <p>先关掉扩散：D = 0。中心差分在这里的做法只有一条：<strong>一道面上的浓度，取两边盒子浓度的平均</strong>。均匀盒子下，这就是 OpenFOAM 的 <code>linear</code> 插值。<a href="#source-schemes">[来源 1]</a></p>
+    <p>算 9 号：自己是 0，左邻 8 号是 0，右邻 10 号是 10。两道面上每秒通过的水体积都是：</p>
+    <pre class="formula"><code>F = u × A = 1 m/s × 1 m² = 1 m³/s
+
+左面浓度 = (8 号 + 9 号) / 2 = (0 + 0) / 2 = 0 kg/m³
+右面浓度 = (9 号 + 10 号) / 2 = (0 + 10) / 2 = 5 kg/m³
+
+水从左面带进的墨 = F × 左面浓度 = 1 × 0 = 0 kg/s
+水从右面带出的墨 = F × 右面浓度 = 1 × 5 = 5 kg/s
+净流入 = 带进 − 带出 = 0 − 5 = −5 kg/s</code></pre>
+    <p>浓度的改动 = 这一步增加的墨量 ÷ 盒子体积。因此：</p>
+    <pre class="formula"><code>9 号新浓度 = 旧浓度 + Δt × 净流入 / V
+             = 0 + 0.5 s × (−5 kg/s) / 1 m³
+             = −2.5 kg/m³</code></pre>
+    <div class="callout key">
+      <span class="label">负数的来历已经找到了</span>
+      <p>9 号开始没有墨，中心平均却在它的右面放了浓度 5，于是计算出它往右带走了墨。这个离散式没有保证“带出的墨不能超过盒子里已有的墨”。</p>
+    </div>
+  </section>
+
+  <section id="diffusion">
+    <h2>二 · 同一份开始值，加回扩散</h2>
+    <p>盒子、速度、步长和开始浓度全部保持不变，只把 D 从 0 改成 <strong>0.6 m²/s</strong>。一道内部面的扩散权重为：</p>
+    <pre class="formula"><code>k = D × A / Δx
+  = 0.6 m²/s × 1 m² / 1 m = 0.6 m³/s
+
+从一道面扩散进来的墨 = k × (对面浓度 − 自己浓度)</code></pre>
+    <p>9 号自己是 0，左邻是 0，右邻是 10，所以：</p>
+    <pre class="formula"><code>左面扩散进来 = 0.6 × (0 − 0) = 0 kg/s
+右面扩散进来 = 0.6 × (10 − 0) = 6 kg/s
+对流净流入   = 1 × 0 − 1 × 5 = −5 kg/s
+
+总净流入 = 0 + 6 − 5 = 1 kg/s
+9 号新浓度 = 0 + 0.5 × 1 / 1 = +0.5 kg/m³</code></pre>
+    <p>这次，扩散给出的 6 kg/s 流入超过对流算出的 5 kg/s 流出，合计净流入是 1 kg/s，清水盒子便不再变成负数。<strong>两项都从开始时的浓度计算，在同一步相加</strong>。</p>
+    <p>也算一遍旁边两个盒子，仍然只读开始时的值：</p>
+    <pre class="formula"><code>10 号：自己 10，左右邻居都是 0
+对流净流入 = 1 × (0 + 10)/2 − 1 × (10 + 0)/2 = 0
+扩散净流入 = 0.6 × (0 − 10) + 0.6 × (0 − 10) = −12
+新浓度 = 10 + 0.5 × (0 − 12) / 1 = 4 kg/m³
+
+11 号：自己 0，左邻 10，右邻 0
+对流净流入 = 1 × (10 + 0)/2 − 1 × (0 + 0)/2 = 5
+扩散净流入 = 0.6 × (10 − 0) + 0.6 × (0 − 0) = 6
+新浓度 = 0 + 0.5 × (5 + 6) / 1 = 5.5 kg/m³</code></pre>
+    <p>8 到 12 号从 <code>0、0、10、0、0</code> 变成 <code>0、0.5、4、5.5、0</code>。浓度全在 0 到 10 之间；盒子等体积，墨的总量也对上了：<code>(0.5 + 4 + 5.5) × 1 m³ = 10 kg</code>。</p>
+  </section>
+
+  <section id="weights">
+    <h2>三 · 怎样提前知道会不会变负</h2>
+    <p>把一个内部盒子的旧浓度叫 C_P，左邻旧浓度叫 C_L，右邻旧浓度叫 C_R。仍然是均匀盒子、恒定水速向右、显式计算。先照两道面逐项记账：</p>
+    <pre class="formula"><code>总净流入
+  = F × (C_L + C_P)/2 − F × (C_P + C_R)/2
+    + k × (C_L − C_P) + k × (C_R − C_P)
+  = (F/2) × (C_L − C_R) + k × (C_L − 2C_P + C_R)
+
+C_新 = C_P + (Δt/V) × 总净流入</code></pre>
+    <p>为了少写重复的乘除，把“水走了几格”和“扩散这一步有多强”分别记为 c 和 r。c 就是 CFL，两个量都没有单位：</p>
+    <pre class="formula"><code>c = F × Δt / V = u × Δt / Δx
+  = 1 × 0.5 / 1 = 0.5
+r = k × Δt / V = D × Δt / Δx²
+  = 0.6 × 0.5 / 1² = 0.3
+
+C_新 = C_P + (c/2) × (C_L − C_R)
+             + r × (C_L − 2C_P + C_R)
+
+     = (r + c/2) × C_L
+       + (1 − 2r) × C_P
+       + (r − c/2) × C_R</code></pre>
+    <p>现在三份权重各自都看得见了：</p>
+    <pre class="formula"><code>左邻：r + c/2 = 0.3 + 0.25 = 0.55
+自己：1 − 2r  = 1 − 0.6    = 0.40
+右邻：r − c/2 = 0.3 − 0.25 = 0.05
+相加：0.55 + 0.40 + 0.05 = 1
+
+9 号：0.55 × 0 + 0.40 × 0 + 0.05 × 10 = 0.5</code></pre>
+    <p><strong>三个权重都不小于 0，而且加起来是 1，新浓度就是三个旧浓度的加权平均。</strong>旧浓度都在 0 到 10 内，平均后也留在这个范围内。</p>
+    <p>水向右流，所以 c ≥ 0、r ≥ 0，左邻权重已经不会负。剩下两份分别要求：</p>
+    <pre class="formula"><code>右邻不负：r − c/2 ≥ 0  →  r ≥ c/2
+自己不负：1 − 2r ≥ 0   →  r ≤ 0.5</code></pre>
+    <p>这两个条件一起，保证本课<strong>内部盒子的一步更新</strong>不制造新的极大或极小值。若某个权重为负，便能找到一组非负的开始浓度，让下一步出现负值；不代表每一组平滑浓度都会立刻出问题。</p>
+  </section>
+
+  <section id="two-checks">
+    <h2>四 · 扩散够不够，与一步迈多大</h2>
+    <p>先看右邻权重。D &gt; 0 时，把 <code>r ≥ c/2</code> 两边除以 r，再把 c、r 的定义代回：</p>
+    <pre class="formula"><code>c/r ≤ 2
+c/r = (u × Δt / Δx) / (D × Δt / Δx²)
+    = u × Δx / D
+
+所以：u × Δx / D ≤ 2</code></pre>
+    <p>这个比值叫<strong>格 Péclet 数</strong>（读作“佩克莱数”，Péclet 只是人名）。它在这里比较同一格尺度上的对流与扩散。可以只记住算式：<code>u × Δx / D</code>。<a href="#source-balance">[来源 2]</a></p>
+    <p>本课 u = 1 m/s、Δx = 1 m、D = 0.6 m²/s：</p>
+    <pre class="formula"><code>u × Δx / D = 1 × 1 / 0.6 = 5/3 ≈ 1.67，小于 2
+
+若只把 D 改成 0.4 m²/s：
+u × Δx / D = 1 × 1 / 0.4 = 2.5，大于 2
+Δt 仍为 0.5 s：c = 0.5，r = 0.4 × 0.5 / 1² = 0.2
+右邻权重 = 0.2 − 0.25 = −0.05
+9 号新浓度 = −0.05 × 10 = −0.5 kg/m³</code></pre>
+    <p>注意：这个比值里 Δt 已经约掉了。<strong>只缩短一步的时间，修不好右邻权重的符号。</strong>减慢水速、加密盒子或改变真实扩散参数，才会改变这个比值；实际计算中不能为了让算法好算，擅自把材料的 D 加大。</p>
+    <p>再看自己那份。仍用 u = 1 m/s、Δx = 1 m、D = 0.6 m²/s，若把 Δt 从 0.5 s 加到 1 s：</p>
+    <pre class="formula"><code>c = 1 × 1 / 1 = 1
+r = 0.6 × 1 / 1² = 0.6
+左邻权重 = 0.6 + 0.5 = 1.1
+自己权重 = 1 − 1.2 = −0.2
+右邻权重 = 0.6 − 0.5 = 0.1
+
+10 号：左右 0，自己 10
+新浓度 = 1.1 × 0 − 0.2 × 10 + 0.1 × 0 = −2 kg/m³</code></pre>
+    <div class="callout key" id="quick-card">
+      <span class="label">两项检查，分别管一件事</span>
+      <p><code>u × Δx / D ≤ 2</code>：扩散能否抵消中心差分右邻的负权重。</p>
+      <p><code>r = D × Δt / Δx² ≤ 0.5</code>：本课的一维显式更新，自己留下的权重是否为负。</p>
+      <p>这里判断的是“不制造新极值”。它比仅仅判断“不发散”更严格。</p>
+    </div>
+  </section>
+
+  <section id="cavity">
+    <h2>五 · 回到课程里的 cavity</h2>
+    <p>课程对应的是仓库里这一个旧版算例，路径要写全：</p>
+    <pre class="formula"><code>tutorials/legacy/incompressible/icoFoam/cavity/cavity/
+
+system/fvSchemes：div(phi,U) Gauss linear;
+system/blockMeshDict：边长 0.1 m，每边 20 个盒子
+0/U：顶盖速度 1 m/s
+constant/physicalProperties：nu = 0.01 m²/s</code></pre>
+    <p><code>div(phi,U)</code> 里输运的是速度。速度扩散时，D 的位置换成运动黏度 ν（文件里写 <code>nu</code>，单位也是 m²/s）。用顶盖速度作为尺度，先做一项估算：<a href="#source-cavity">[来源 3]</a></p>
+    <pre class="formula"><code>Δx = 0.1 m / 20 = 0.005 m
+对流 / 扩散的格尺度比值
+   = 1 m/s × 0.005 m / (0.01 m²/s)
+   = 0.5，小于 2</code></pre>
+    <p>这解释了：在这个黏性较强、均匀网格的设定下，中心插值的对流项能够与扩散项配合使用。<strong>这是尺度估算</strong>，没有证明完整的二维压力—速度求解过程处处有界。</p>
+    <p>cavity 的时间项用的是隐式 <code>Euler</code>，所以不能把上面一维<strong>显式</strong>的 <code>r ≤ 0.5</code> 直接套给它。时间离散与空间插值是两处不同的选择。<a href="#source-schemes">[来源 1]</a></p>
+    <details class="answer">
+      <summary>核对路径：为什么另一份 cavity 的设置不同？</summary>
+      <p>仓库中的 <code>tutorials/incompressibleFluid/cavity/</code> 是另一份算例，当前 <code>nu = 1e-05 m²/s</code>，<code>div(phi,U) Gauss limitedLinearV 1;</code>。课程这次分析的是上面写全路径的 legacy/icoFoam 算例，两份配置不能混用。</p>
+    </details>
+  </section>
+
+  <section id="practice">
+    <h2>六 · 先手算，再点答案</h2>
+    <p>下面三题都只算<strong>一个显式时间步</strong>；所有面都从开始时的浓度取值。点选后会展开算式和错误原因。想重做可以刷新页面。</p>
+    <div class="quiz" id="quiz">
+      <div class="q" data-answer="2">
+        <p class="stem">1. 管有 40 个等宽盒子，A = 1 m²、Δx = 1 m、u = 1 m/s 向右、D = 0.4 m²/s、Δt = 0.5 s。开始时只有 10 号浓度 10 kg/m³，其余全 0，进水口也是 0。中心差分加扩散，9 号下一步浓度是多少 kg/m³？</p>
+        <div class="opts">
+          <button class="opt" type="button" aria-pressed="false">−2.5</button>
+          <button class="opt" type="button" aria-pressed="false">+2.5</button>
+          <button class="opt" type="button" aria-pressed="false">−0.5</button>
+          <button class="opt" type="button" aria-pressed="false">+0.5</button>
+        </div>
+        <p class="fb" hidden data-fb="c = 1 × 0.5 / 1 = 0.5，r = 0.4 × 0.5 / 1² = 0.2；9 号左右是 0 和 10，自己是 0，所以新浓度 = (r − c/2) × 10 = (0.2 − 0.25) × 10 = −0.5。选 −2.5 是漏了扩散；选 +2.5 是把向右带出的墨记成了流入，并漏了扩散；选 +0.5 是沿用了 D = 0.6 的结果，没重算 r。"></p>
+      </div>
+      <div class="q" data-answer="1">
+        <p class="stem">2. 管有 40 个等宽盒子，A = 1 m²、Δx = 1 m、u = 1 m/s 向右、D = 0.4 m²/s。开始时只有 10 号浓度 10 kg/m³，其余全 0，进水口也是 0。这次 Δt = 0.25 s。中心差分加扩散，9 号下一步浓度是多少 kg/m³？</p>
+        <div class="opts">
+          <button class="opt" type="button" aria-pressed="false">+0.25</button>
+          <button class="opt" type="button" aria-pressed="false">−0.25</button>
+          <button class="opt" type="button" aria-pressed="false">+0.50</button>
+          <button class="opt" type="button" aria-pressed="false">−0.50</button>
+        </div>
+        <p class="fb" hidden data-fb="c = 1 × 0.25 / 1 = 0.25，r = 0.4 × 0.25 / 1² = 0.1。新浓度 = (0.1 − 0.25/2) × 10 = −0.25。缩短时间只减小了负值，没有修复符号。选 +0.25 是把右邻权重取了绝对值；选 −0.50 是没更新 Δt；选 +0.50 则同时沿用了旧步长并把负号丢了。"></p>
+      </div>
+      <div class="q" data-answer="3">
+        <p class="stem">3. 换一套更细的均匀盒子：管有 40 个盒子，A = 1 m²、Δx = 0.5 m、u = 1 m/s 向右、D = 0.4 m²/s、Δt = 0.25 s。开始时只有 10 号浓度 10 kg/m³，其余全 0，进水口也是 0。中心差分加扩散，9 号下一步浓度是多少 kg/m³？</p>
+        <div class="opts">
+          <button class="opt" type="button" aria-pressed="false">−1.0</button>
+          <button class="opt" type="button" aria-pressed="false">−0.5</button>
+          <button class="opt" type="button" aria-pressed="false">+4.0</button>
+          <button class="opt" type="button" aria-pressed="false">+1.5</button>
+        </div>
+        <p class="fb" hidden data-fb="c = 1 × 0.25 / 0.5 = 0.5，r = 0.4 × 0.25 / 0.5² = 0.4。右邻权重 = 0.4 − 0.25 = 0.15，9 号新浓度 = 0.15 × 10 = 1.5。其余两份是 0.65、0.2，都非负。选 −0.5 是把 r 的分母误写成 Δx，得到 r = 0.2；选 +4.0 是漏掉对流的 −0.25；选 −1.0 是把对流项也除以 Δx²，得到 c = 1。"></p>
+      </div>
+    </div>
+  </section>
+
+  <section id="sources">
+    <h2>想核对出处时，看这里</h2>
+    <ol>
+      <li id="source-schemes"><a href="https://doc.cfd.direct/openfoam/user-guide-v13/fvschemes">OpenFOAM 官方用户指南 · Numerical schemes（数值格式）</a>：查 <code>linear</code>、<code>limitedLinear</code>；同页的 Time schemes（时间格式）说明 <code>Euler</code> 是隐式。它没有把 <code>linear</code> 宣称为普遍有界。</li>
+      <li id="source-balance"><strong>本课首选延伸阅读：</strong><a href="https://doc.cfd.direct/notes/cfd-general-principles/diagonal-dominance">Greenshields 与 Weller · Notes on CFD §5.5</a>。先只读对流与扩散的系数怎样抵消；本课第三、四节已经把均匀一维情形的符号与阈值手推出来，不要求现在学矩阵理论。</li>
+      <li id="source-cavity"><a href="https://doc.cfd.direct/openfoam/user-guide-v10/cavity">OpenFOAM v10 官方 cavity 教程</a>：核对 0.1 m、20 × 20、1 m/s 和 ν = 0.01 m²/s。旧版路径在本仓库已移到 <code>tutorials/legacy/incompressible/icoFoam/cavity/cavity/</code>；文件内容已于 2026-11-02 本地核对。</li>
+    </ol>
+  </section>
+
+  <footer>
+    <p><strong>这一课先停在这里：</strong>会从两道面的流量算出负数，也会检查三份权重，就已经完成本课目标。压力方程放在后面讲。</p>
+    <p><strong>读完只回我一道题：</strong>40 个等宽盒子，A = 1 m²、Δx = 1 m、u = 1 m/s 向右、D = 0.5 m²/s、Δt = 0.5 s；开始时仅 10 号浓度 10 kg/m³，其余与进水口全 0。用中心差分加扩散，9 号下一步是多少？请写出两道面的对流与扩散算式。</p>
+    <p><strong>任何一步没跟上，直接在对话里指出那一行，我从那一行重讲。</strong></p>
+    <p><a href="../formula-cheatsheet.md">公式速查表</a> · <a href="../GLOSSARY.md">术语表</a> · <a href="../README.md">砖块总索引</a></p>
+  </footer>
+</main>
+<script src="../assets/quiz.js"></script>
+</body>
+</html>
