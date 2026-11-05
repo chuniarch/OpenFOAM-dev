@@ -54,6 +54,14 @@
   对照本课程使用的旧版 icoFoam 算例：边长 0.1 m、20 × 20、顶盖 1 m/s、ν = 0.01 m²/s。
   本地路径已移到 `tutorials/legacy/incompressible/icoFoam/cavity/cavity/`；另一个 `tutorials/incompressibleFluid/cavity/` 配置不同。2026-11-02 在线及本地核实。
 
+- [Greenshields & Weller, *Notes on CFD* §5.15 — Conjugate gradient method](https://doc.cfd.direct/notes/cfd-general-principles/conjugate-gradient-method)
+  插页 D（一）首选延伸阅读；用于把本课的两盒改动方向与 `pᵀAq = 0` 对上。
+  本课自己从逐面净流入推算例，不先教二次型或抽象向量记号。一般共轭方向不等价于逐行锁死方程。2026-11-05 在线核实。
+
+- [Greenshields & Weller, *Notes on CFD* §5.16 — Preconditioning and asymmetry](https://doc.cfd.direct/notes/cfd-general-principles/preconditioning-and-asymmetry)
+  供后续预处理与 CG 适用条件使用，本页不展开。用于防止把两未知量的精确算例推广成真实 CFD 总能两次解完。
+  已本地核对旧版 cavity 的压力配置是 `PCG` + `DIC`，源码声明见 `src/OpenFOAM/matrices/lduMatrix/solvers/PCG/PCG.H`。2026-11-05 在线及本地核实。
+
 ## 交叉线：Stable Fluids / FLIP（实时图形路线）
 
 学习者同时在学另一门课，走的是 Stam 的 Stable Fluids → 3D FLIP。**两条线在讲同一条物理定律，

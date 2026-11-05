@@ -28,6 +28,7 @@
    - 第 10 课「水流推着墨走」（纯对流、迎风、CFL，一维，TypeScript）：https://claude.ai/artifact/RU3ubjUGLXbvnFqkGMdaoH
    - 第 10B 课「峰值去哪了」（数值扩散、对流 + 扩散）：https://claude.ai/artifact/1ZCmU6yoTYTioHwN6qMgt2
 >   - 第 10C 课样稿「同一个盒子，为什么不再是负数？」：[本地 HTML](lessons/0012-central-difference.html)；[配套速查卡](reference/0002-central-difference-card.html)。2026-11-02 产出，待学习者阅读与反馈。
+>   - 插页 D（一）「第二次改动，怎样保住第一次的结果？」：[本地 HTML](lessons/0013-conjugate-directions.html)；[配套速查卡](reference/0003-conjugate-directions-card.html)。2026-11-05 产出，共轭方向的两盒手算，待阅读与反馈。
 >   - 发布页用 `tools/build_artifact.py` 生成：内联共享组件，并检查相对引用、脚本开闭、练习解释是否完整
 >   - 仓库里的 `lessons/*.html` 是同一份源文件，共享 `assets/lesson.css` 与 `assets/quiz.js`；
 >     发布页是把这两个组件内联进去后的自包含版本
@@ -191,8 +192,8 @@
    并由此补上「数值扩散」这一课（见砖块 10 末尾）。
 🔄 **当前模式（2026-08-29 起）：按砖块顺序重走一遍。** 每砖讲透、结尾答题才过关。
    本文件从此只当**索引与备忘**，不作为「已掌握」的凭证 —— 写过 ≠ 讲透。
-   **最新产出（2026-11-02）：第 10C 课样稿 `lessons/0012-central-difference.html`，讲中心差分加扩散的三份权重、格尺度条件和显式步长条件。
-   第 10B 课与 `ConvectionDiffusion1D.ts` 已于 2026-10-06 产出；第 10C 课正在交给学习者审阅。课文存在不等于已掌握，练习通过情况仍以学习记录和本人回答为准。**
+   **最新产出（2026-11-05）：插页 D（一）样稿 `lessons/0013-conjugate-directions.html`，从两盒稳态扩散推一对共轭方向，先理解改动如何配合，完整 CG 算法留到后续。
+   第 10C 课于 2026-11-02 产出；第 10B 课与 `ConvectionDiffusion1D.ts` 于 2026-10-06 产出。学习者要求继续出课文，尚未回报新练习答案；课文存在不等于已掌握，练习通过情况仍以学习记录和本人回答为准。**
    历史位置（2026-09-29）：插页 C 第二节已过，开始第 7 课，代码改用 TypeScript。以下保留当时的背景；最新接续点见 `HANDOFF.md` 顶部。
    插页 B 第 1 版被评为「汇报结论」，已按推导重写为第 2 版（同一链接），见 LR-0010、NOTES 第 14 条。
    插页 B 第二节又改为第 3 版：墙外那缸水列为邻居，从「进 = 出」推更新式与误差式，见 LR-0011。
@@ -224,6 +225,6 @@
 本会话直接在该分支上工作，不要新建 claude/* 分支。
 
 先读 doc/ipad-cfd-teaching/learning/HANDOFF.md 顶部快照，再读同目录的 NOTES.md（硬约束）。
-最新产出是第 10C 课样稿；先核对本人读到哪里、哪些问题仍没解决，再继续讲，不把课文产出当成已掌握。
+最新产出是插页 D（一）的共轭方向样稿；先核对本人读到哪里、哪些问题仍没解决，再继续讲，不把课文产出当成已掌握。
 代码一律用 TypeScript。提到之前的任何内容，把条件、做法、公式当场写全；表格里的数要给算式。
 ```

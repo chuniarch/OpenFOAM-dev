@@ -1,0 +1,64 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>速查卡 · 两个盒子的共轭方向</title>
+<link rel="stylesheet" href="../assets/lesson.css">
+</head>
+<body>
+<main class="sheet">
+  <header class="masthead">
+    <p class="eyebrow">速查卡 03 · 插页 D（一）配套 · 非教程</p>
+    <h1>把改动的比例算出来</h1>
+    <p class="meta"><span><a href="../lessons/0013-conjugate-directions.html#scene">回到完整手算</a></span><span>2026-11-05 · 掌握情况待回答确认</span></p>
+  </header>
+  <section>
+    <h2>固定这道题的条件</h2>
+    <p>水静止，两盒稳态扩散，无源；左墙浓度 10、右墙 0；内部面 k = 1 m³/s，边界墙各 2k。所有浓度单位 kg/m³。</p>
+    <pre class="formula"><code>1 号净流入 = k × (20 − 3C_1 + C_2)
+2 号净流入 = k × (C_1 − 3C_2)
+
+配平后：3C_1 − C_2 = 20
+        −C_1 + 3C_2 = 0</code></pre>
+  </section>
+  <section id="ratio">
+    <h2>从当前值到一对配合的改动</h2>
+    <pre class="formula"><code>从猜值 (0, 0) 出发，先只改 1 号：
+  C_1 = 20/3，C_2 = 0
+
+再让 1 号增加 a，2 号增加 b：
+  第一条左边的改动 = 3a − b
+  要保住第一条：3a − b = 0 → a = b/3
+
+所以第二次改完：
+  C_1 = 20/3 + b/3，C_2 = b
+用第二条决定改动大小：
+  −(20/3 + b/3) + 3b = 0
+  b = 5/2，a = 5/6
+最终：(C_1, C_2) = (7.5, 2.5)</code></pre>
+  </section>
+  <section>
+    <h2>验收</h2>
+    <pre class="formula"><code>左墙进 1 号：2k × (10 − 7.5) = 5k
+内部面 1 → 2：k × (7.5 − 2.5) = 5k
+2 号出右墙：2k × (2.5 − 0) = 5k
+两盒各自净流入都是 0。</code></pre>
+  </section>
+  <section>
+    <h2>与“共轭”记号对上</h2>
+    <pre class="formula"><code>A = [ 3  −1 ]    第一次方向 p = (1, 0)
+    [−1   3 ]    第二次方向 q = (1/3, 1)
+
+Aq = (3 × 1/3 − 1, −1/3 + 3) = (0, 8/3)
+pᵀAq = 1 × 0 + 0 × 8/3 = 0</code></pre>
+    <p>零来自两方向与这张系数表的配合。在本例中，第一次方向只动 1 号，所以保住的是第一条。一般 CG 不能理解成逐行固定已经配平的盒子。</p>
+  </section>
+  <footer>
+    <p><strong>换权重就重新推：</strong>若第一条是 <code>d × C_1 − w × C_2 = 已知值</code>，同时改 a、b 后，其左边改动为 <code>d × a − w × b</code>。令它为 0，得 <code>a = (w/d) × b</code>；本题 d = 3、w = 1。</p>
+    <p>本卡只记录这一对共轭方向的算例，完整 CG 的方向与步长生成公式尚未讲解。</p>
+    <p>来源：<a href="https://doc.cfd.direct/notes/cfd-general-principles/conjugate-gradient-method">CFD Direct · Notes on CFD §5.15</a>。详细推导见<a href="../lessons/0013-conjugate-directions.html#pair">课文第二节</a>。</p>
+  </footer>
+</main>
+</body>
+</html>
